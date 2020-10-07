@@ -351,17 +351,17 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
     def get_update_information(self):
         return dict(
             simplyfilamentsensor=dict(
-                displayName="SimplyFilamentSensor",
+                displayName="SimplyPrint",
                 displayVersion=self._plugin_version,
 
                 # version check: github repository
                 type="github_release",
                 user="SimplyPrint",
-                repo="OctoPrint-SimplyFilamentSensor",
+                repo="OctoPrint-SimplyPrint",
                 current=self._plugin_version,
 
                 # update method: pip
-                pip="https://github.com/SimplyPrint/OctoPrint-SimplyFilamentSensor/archive/{target_version}.zip"
+                pip="https://github.com/SimplyPrint/OctoPrint-SimplyPrint/archive/{target_version}.zip"
             )
         )
 
