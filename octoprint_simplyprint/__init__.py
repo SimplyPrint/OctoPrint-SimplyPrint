@@ -14,7 +14,6 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                   octoprint.plugin.StartupPlugin,
                   octoprint.plugin.TemplatePlugin,
                   octoprint.plugin.SimpleApiPlugin,
-                  # octoprint.plugin.StartupPlugin
                   octoprint.plugin.AssetPlugin,
                   octoprint.plugin.EventHandlerPlugin):
 
@@ -350,7 +349,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
 
     def get_update_information(self):
         return dict(
-            simplyfilamentsensor=dict(
+            simplyprint=dict(
                 displayName="SimplyPrint",
                 displayVersion=self._plugin_version,
 
@@ -370,10 +369,8 @@ __plugin_pythoncompat__ = ">=2.7,<4"
 
 
 def __plugin_load__():
-    global __plugin_implementation__
+    global __plugin_implementation__, __plugin_hooks__
     __plugin_implementation__ = SimplyPrint()
-
-    global __plugin_hooks__
     __plugin_hooks__ = {
         "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
     }
