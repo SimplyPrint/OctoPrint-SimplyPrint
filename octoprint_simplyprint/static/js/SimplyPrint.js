@@ -101,8 +101,7 @@ $(function () {
 
                     if (thePluginParent.find(".fa.fa-lock").length) {
                         //Not managable by user
-                        $(`<img alt="SimplyPrint logo (all rights reserved)" src="plugin/SimplyPrint/static/img/sp_logo.png" title="Plugin installed through, and can only be uninstalled through, SimplyPrint" style="margin-left: 10px;width: 19px;">`).insertAfter(thePluginParent.find(".fa.fa-lock"));
-                        thePluginParent.find(".fa.fa-trash-o").addClass("disabled").attr("title", "Can be uninstalled through the SimplyPrint panel");
+                        $(`<img alt="SimplyPrint logo (all rights reserved)" src="plugin/SimplyPrint/static/img/sp_logo.png" title="Plugin installed through SimplyPrint" style="margin-left: 10px;width: 19px;">`).insertAfter(thePluginParent.find(".fa.fa-lock"));
                     }
                 });
             } else {
