@@ -289,7 +289,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                             "name": plugin.name,
                             "author": plugin.author,
                             "version": plugin.version,
-                            "sp_installed": plugin.name in sp_plugins,
+                            "sp_installed": plugin.name in sp_plugins or plugin.key == "simplyprint",
                             "pip_name": self._plugin_manager.get_plugin_info(plugin.key).origin.package_name
                         })
 
