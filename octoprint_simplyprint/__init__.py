@@ -270,14 +270,11 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                               "plugin_pluginmanager_uninstall_plugin",
                               "plugin_pluginmanager_enable_plugin",
                               "plugin_pluginmanager_disabled_plugin"] or event_name == "Startup":
-                # A plugin has been installed/removed/enabled/disabled - update SP
-                default_plugins = [
-                    "SimplyPrint",
-                ]
 
                 # Get plugins that have been installed through SP
                 sp_plugins = []
-                if os.path.isfile("/home/pi/SimplyPrint/sp_installed_plugins.txt"):
+                sp_plugins_path = "/home/pi/SimplyPrint/sp_installed_plugins.txt"
+                if os.path.isfile(sp_plugins_path):
                     with open("/home/pi/SimplyPrint/sp_installed_plugins.txt") as f:
                         for line in f:
                             sp_plugins.append(line.replace("\n", ""))
@@ -286,7 +283,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                 installed_plugins = []
                 plugins = self._plugin_manager.plugins
                 for key, plugin in plugins.items():
-                    if not plugin.bundled and not plugin.hidden and plugin.key not in default_plugins and plugin.enabled:
+                    if not plugin.bundled and not plugin.hidden and plugin.enabled:
                         installed_plugins.append({
                             "key": plugin.key,
                             "name": plugin.name,
