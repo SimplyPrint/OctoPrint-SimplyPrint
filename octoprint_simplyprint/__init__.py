@@ -58,6 +58,8 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             "plugin_simplypowercontroller_power_off",
 
             "MetadataAnalysisFinished",
+
+            "plugin_firmware_check_warning",
         ]
 
     # #~~ StartupPlugin mixin
@@ -213,6 +215,9 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             elif event_name == "plugin_printer_safety_check_warning":
                 # Unsafe firmware - suggest update
                 url_parameters += "&unsafe_firmware=" + str(event_details)
+            elif event_name == "plugin_firmware_check_warning":
+                # Printer firmware warning - not the same as unsafe firmware
+                url_parameters += "&firmware_warning=" + str(event_details)
 
             elif event_name == "Error":
                 url_parameters += "&printer_error=" + str(event_details)
