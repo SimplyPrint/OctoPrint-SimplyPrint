@@ -53,6 +53,8 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             "plugin_simplyfilamentsensor_filament_loaded",
             "plugin_simplyfilamentsensor_filament_runout",
             "plugin_simplyfilamentsensor_filament_no_filament_print_on_print_start",
+            "plugin_simplyfilamentsensor_no_filament_on_print_start_paused",
+            "plugin_simplyfilamentsensor_no_filament_on_print_start_cancelled",
 
             "plugin_simplypowercontroller_power_on",
             "plugin_simplypowercontroller_power_off",
@@ -349,6 +351,13 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             else:
                 self.log("url parameters is empty - not requesting")
 
+    def gcode_sent(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
+        if gcode and gcode == "M106":
+            self._logger.info("Just sent M106: {cmd}".format(**locals()))
+
+    def gcode_received(self, line, *args, **kwargs):
+        return line
+
     def get_update_information(self):
         return dict(
             simplyprint=dict(
@@ -374,5 +383,7 @@ def __plugin_load__():
     global __plugin_implementation__, __plugin_hooks__
     __plugin_implementation__ = SimplyPrint()
     __plugin_hooks__ = {
-        "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
+        "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
+        "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received,
+        "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent,
     }
