@@ -319,7 +319,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                 the_json = None
 
                 try:
-                    r = requests.get(url, allow_redirects=True)
+                    r = requests.get(url, allow_redirects=True, verify=False)
                     r.raise_for_status()
 
                     # Parse
@@ -351,12 +351,12 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             else:
                 self.log("url parameters is empty - not requesting")
 
-    def gcode_sent(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
+    '''def gcode_sent(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
         if gcode and gcode == "M106":
             self._logger.info("Just sent M106: {cmd}".format(**locals()))
 
     def gcode_received(self, line, *args, **kwargs):
-        return line
+        return line'''
 
     def get_update_information(self):
         return dict(
@@ -384,6 +384,6 @@ def __plugin_load__():
     __plugin_implementation__ = SimplyPrint()
     __plugin_hooks__ = {
         "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
-        "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received,
-        "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent,
+        # "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received,
+        # "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent,
     }
