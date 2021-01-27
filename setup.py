@@ -10,20 +10,20 @@ plugin_package = "octoprint_simplyprint"
 
 # The plugin's human readable name. Can be overwritten within OctoPrint's internal data via __plugin_name__ in the
 # plugin module
-plugin_name = "SimplyPrint"
+plugin_name = "SimplyPrint Cloud"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
 plugin_version = "1.6.6"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
-plugin_description = "SimplyPrint plugin for OctoPrint"
+plugin_description = "3D print online anywhere from (probably) the most user friendly all-in-one platform there is, from your computer or phone."
 
 # The plugin's author. Can be overwritten within OctoPrint's internal data via __plugin_author__ in the plugin module
 plugin_author = "SimplyPrint"
 
 # The plugin's author's mail address.
-plugin_author_email = "albert@simplyprint.dk"
+plugin_author_email = "albert@simplyprint.io"
 
 # The plugin's homepage URL. Can be overwritten within OctoPrint's internal data via __plugin_url__ in the plugin module
 plugin_url = "https://simplyprint.dk/"
@@ -32,7 +32,7 @@ plugin_url = "https://simplyprint.dk/"
 plugin_license = "AGPLv3"
 
 # Any additional requirements besides OctoPrint should be listed here
-plugin_requires = ["pyyaml", "requests"]
+plugin_requires = ["pyyaml", "requests", "SimplyPrintRPiSoftware>=2.4.4"]
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point

@@ -1,0 +1,118 @@
+@font-face {
+    font-family: LCD;
+    src: url(/../../plugin/SimplyPrint/static/font/lcd.ttf);
+}
+
+.splcd {
+    font-family: 'LCD'; /* don't add serif! */
+}
+
+#spbiglcd {
+    font-family: 'LCD';
+    font-size: 60px;
+    margin-top: 20px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+#spbiglcd.dot-flashing {
+    margin: 30px auto;
+}
+
+#spbiglcd button {
+    position: absolute;
+    margin-left: 8px;
+}
+
+#spbiglcd.dot-flashing button {
+    display: none;
+}
+
+#SimplyPrintWelcome .modal-title img {
+    width: 30px;
+    vertical-align: middle;
+}
+
+#SimplyPrintWelcome .modal-title span {
+    vertical-align: middle;
+}
+
+#simplyprint_plugin_navbar div {
+    display: inline-block;
+}
+
+#simplyprint_short_setup_code {
+    cursor: pointer;
+}
+
+#simplyprint_short_setup_code.dot-flashing {
+    margin: 0 16px auto;
+}
+
+#SimplyPrintWelcome .modal-body {
+    padding-top: 30px;
+}
+
+.spwelcome-text-muted {
+    margin-top: 10px;
+    color: #6c757d;
+}
+
+#SimplyPrintWelcome ul {
+    text-align: left;
+}
+
+#SimplyPrintWelcome ul li {
+    margin-bottom: 4px;
+}
+
+/* Flashing dot animation */
+.dot-flashing {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: black;
+    color: black;
+    animation: dotFlashing 1s infinite linear alternate;
+    animation-delay: .5s;
+}
+
+.dot-flashing::before, .dot-flashing::after {
+    content: '';
+    display: inline-block;
+    position: absolute;
+    top: 0;
+}
+
+.dot-flashing::before {
+    left: -15px;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: black;
+    color: black;
+    animation: dotFlashing 1s infinite alternate;
+    animation-delay: 0s;
+}
+
+.dot-flashing::after {
+    left: 15px;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: black;
+    color: black;
+    animation: dotFlashing 1s infinite alternate;
+    animation-delay: 1s;
+}
+
+@keyframes dotFlashing {
+    0% {
+        background-color: black;
+    }
+    50%,
+    100% {
+        background-color: #9E9E9E;
+    }
+}

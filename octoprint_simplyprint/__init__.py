@@ -3,11 +3,14 @@ from __future__ import absolute_import
 
 import os
 import sys
+import json
+import requests
+import threading
+
+import flask
 
 import octoprint
 import octoprint.settings
-import json
-import requests
 
 
 class SimplyPrint(octoprint.plugin.SettingsPlugin,
@@ -62,6 +65,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             "MetadataAnalysisFinished",
 
             "plugin_firmware_check_warning",
+            "FileRemoved"
         ]
 
     # #~~ StartupPlugin mixin
@@ -69,6 +73,10 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
         self.log("OctoPrint plugin started")
         # The "Startup" event is never picked up by the plugin, as the plugin is loaded AFTER startup
         self.on_event("Startup", "")
+        if not self._settings.get(["sp_local_installed"]):
+            self._logger.info("SimplyPrintLocal not setup, will do so now.")
+            thread = threading.Thread(target=self.setup_local)
+            thread.start()
 
     @staticmethod
     def get_settings_defaults():
@@ -81,22 +89,68 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             printer_id="",
             simplyprint_version="",
             temp_short_setup_id="",
-            sp_installed_plugins=""
+            sp_installed_plugins="",
         )
 
     @staticmethod
     def get_assets():
         return dict(
             js=["js/SimplyPrint.js"],
+            css=["css/SimplyPrint.css"],
+            font=["font/lcd.ttf"],
             logo=["img/sp_logo.png"],
-            logo_lg=["img/sp_logo_large.png"]
+            logo_lg=["img/sp_logo_large.png"],
+            logo_white_sm=["img/sp_white_sm.png"]
         )
 
     def get_api_commands(self):
-        return dict(
-            command1=[],
-            command2=["some_parameter"]
-        )
+        return {
+            "setup": [],  # Sets up SimplyPrintRPiSoftware
+            "uninstall": [],  # Uninstalls SimplyPrintRPiSoftware
+        }
+
+    def on_api_command(self, command, data):
+        if command == "setup":
+            thread = threading.Thread(target=self.setup_local)
+            thread.start()
+        elif command == "uninstall":
+            try:
+                from simplyprint_raspberry import uninstall
+            except ImportError:
+                self._logger.error("SimplyPrintRPiSoftware not installed, couldn't setup.")
+                return flask.jsonify({"success": False, "message": "sp-rpi_not_available"})
+
+            uninstall.run_uninstall()
+            self._logger.info("Uninstalled SimplyPrintRPiSoftware")
+            # At this point SimplyPrintRPiSoftware is gone... :(
+            return flask.jsonify({"success": True, "message": "sp-rpi_installed"})
+
+    def setup_local(self):
+        self._logger.info("Starting setup of SimplyPrintLocal")
+        try:
+            from simplyprint_raspberry import crontab_manager, startup
+            from simplyprint_raspberry.__main__ import run_initial_webrequest
+        except ImportError:
+            self._logger.error("SimplyPrintRPiSoftware not installed - plugin must be reinstalled")
+            self._plugin_manager.send_plugin_message("SimplyPrint",
+                                                     {"success": False, "message": "sp-rpi_not_available"})
+            return
+        try:
+            crontab_manager.create_cron_jobs()
+            # Startup can hang for a bit, so run as a thread
+            startup_thread = threading.Thread(target=startup.run_startup)
+            startup_thread.start()
+            run_initial_webrequest()
+        except Exception as e:
+            self._logger.error(repr(e))
+            self._logger.error("Failed to setup SimplyPrintRPiSoftware")
+            self._plugin_manager.send_plugin_message("SimplyPrint", {"success": False, "message": "spi-rpi_error"})
+            return
+
+        self._logger.info("Successfully setup SimplyPrintRPiSoftware")
+        self._settings.set(["sp_local_installed"], True)
+        octoprint.settings.settings().save(trigger_event=True)
+        self._plugin_manager.send_plugin_message("SimplyPrint", {"success": True, "message": "sp-rpi_installed"})
 
     def on_api_get(self, request):
         import flask
@@ -144,34 +198,6 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                         return False
                 except:
                     pass
-            '''
-            if request.args.get("install_system", default=None, type=None) is not None:
-                # Install SimplyPrint system
-                url = "https://simplyprint.dk/software/install_system.sh"
-                filename = self.get_plugin_data_folder() + "/sp_install_system.sh"
-                r = requests.get(url, allow_redirects=True, verify=False)
-                open(filename, 'wb').write(r.content)
-                try:
-                    st = os.stat(filename)
-                    os.chmod(filename, st.st_mode | stat.S_IEXEC)
-                    pwd = request.args.get("password", default=None, type=None) + "\n"
-                    self.log(pwd)
-                    if pwd is not None:
-                        cmd_run_shell = "sudo -S {} &".format(filename)
-                        self.log(cmd_run_shell)
-                        # os.popen("sudo -S %s"%(command), 'w').write(pwd)
-                        cmd_run_shell_results = subprocess.Popen(cmd_run_shell.split(), stdin=subprocess.PIPE,
-                                                                 universal_newlines=True)
-                        sudo_prompt = cmd_run_shell_results.communicate(pwd)[1]
-                        self.log(sudo_prompt)
-                        return flask.jsonify(success="everything worked")
-                    else:
-                        return flask.jsonify(error="no password given")
-                except subprocess.CalledProcessError as e:
-                    self.log(e)
-                    return flask.jsonify(error="something went wrong".format(e))
-                return flask.jsonify(error="something went wrong")
-            '''
 
     def log(self, msg):
         self._logger.info("[SimplyPrint] " + msg)
@@ -272,6 +298,12 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                                         self.log(
                                             "Filament usage is reportedly 0mm... Not worth reporting (and might not be true)")
 
+            elif event_name == "FileRemoved":
+                # "Re-print"
+                if "name" in event_details and event_details["name"][:3] == "sp_":
+                    # SimplyPrint file removed
+                    url_parameters += "&file_removed=" + requests.utils.quote(event_details["name"])
+
             # Not "ELif" as we also want to check for "Startup" once again
             if event_name in ["plugin_pluginmanager_install_plugin",
                               "plugin_pluginmanager_uninstall_plugin",
@@ -310,7 +342,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                 if not self._settings.get(["is_set_up"]):
                     base_url += "&new=true"
 
-                base_url += url_parameters + "&pstatus=" + printer_state
+                base_url += url_parameters + "&event&pstatus=" + printer_state
                 url = base_url.replace(" ", "%20")
                 self.log("Doing web request from event. Url is;\n" + str(url) + "\n")
 

@@ -4,9 +4,54 @@
  *
  * Author: Albert MN. @ SimplyPrint
  */
+
 $(function () {
+    function CopyToClipboard(el) {
+        let r = document.createRange();
+        r.selectNode(el[0]);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(r);
+        document.execCommand("copy");
+        //window.getSelection().removeAllRanges();
+    }
+
+    let copiedTimeout = null;
+
+    $("#spbiglcd button").on("click", function () {
+        let el = $(this).prev();
+
+        CopyToClipboard(el);
+        el.tooltip({
+            title: "Copied!",
+            placement: "top",
+            trigger: "manual",
+        }).tooltip("show");
+
+        copiedTimeout = setTimeout(function () {
+            el.tooltip("destroy");
+            window.getSelection().removeAllRanges();
+        }, 800);
+    });
+
+    $("#simplyprint_short_setup_code").on("click", function () {
+        let theThis = $(this);
+        clearTimeout(copiedTimeout);
+
+        CopyToClipboard(theThis);
+        theThis.tooltip({
+            title: "Copied!",
+            placement: "bottom",
+            trigger: "manual",
+        }).tooltip("show");
+
+        copiedTimeout = setTimeout(function () {
+            theThis.tooltip("destroy");
+            window.getSelection().removeAllRanges();
+        }, 800);
+    });
+
     function SimplyprintViewModel(parameters) {
-        var self = this,
+        let self = this,
             displaySafeModeWarning = false;
 
         $("body").on("click", "#navbar_systemmenu ul li:nth-child(4)", function () {
@@ -27,7 +72,10 @@ $(function () {
         self.alreadyProcessedPlugins = [];
 
         self.onAfterBinding = function () {
-            self.RequestSettings();
+            self.checkSettings()
+            if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up()) {
+                $('#SimplyPrintWelcome').modal("show");
+            }
         }
 
         self.OctoSetupChanges = function () {
@@ -71,6 +119,55 @@ $(function () {
             $("#wizard_firstrun_start p:first").html("Let's set up OctoPrint, and get back to the SimplyPrint setup!");
             $("#wizard_plugin_corewizard_printerprofile, #wizard_plugin_corewizard_printerprofile_link").remove();
 
+            $("#wizard_firstrun_start").append(`<hr><p>
+                Just interested in a quick setup? Use the SimplyPrint-recommended OctoPrint setup settings;
+            </p>
+            <button id="setupwizard_sprecommended" class="btn btn-primary" data-toggle="tooltip" title="This is what we do; enable Anonymous Usage Tracking, enable Online Connectivity Check and enable the plugin blacklist. All these settings help you, us and OctoPrint - win win!">
+                <img alt="SimplyPrint logo" src="plugin/SimplyPrint/static/img/sp_white_sm.png" style="width:25px;"> Use recommended settings
+            </button>`);
+
+            $("#wizard_plugin_corewizard_acl p:first").remove();
+            $(`<p style="margin-bottom:20px;">
+                Here you must set up a local OctoPrint account. The login information is only stored on the Raspberry Pi,
+                and used to log in to OctoPrint. This login is not to be confused with the SimplyPrint account you've made.
+            </p>`)
+                .insertAfter($("#wizard_plugin_corewizard_acl h3:first").html("Access Control <i>(OctoPrint login)</i>"));
+
+            $("#setupwizard_sprecommended").on("click", function () {
+                //On click of "Create account"
+                $("#wizard_plugin_corewizard_acl .controls .btn.btn-primary[data-bind]").on("click", function () {
+                    $(".button-next").prop("disabled", true);
+
+                    function TrySetAuto() {
+                        setTimeout(function () {
+                            OctoPrint.postJson("api/settings", {}).fail(function () {
+                                TrySetAuto();
+                            }).done(function () {
+                                //All good!
+                                $("#wizard_plugin_tracking .btn.btn-primary[data-bind]").trigger("click");
+                                $("#wizard_plugin_corewizard_onlinecheck .btn.btn-primary[data-bind]").trigger("click");
+                                $("#wizard_plugin_corewizard_pluginblacklist .btn.btn-primary[data-bind]").trigger("click");
+                                $("#wizard_plugin_tracking, #wizard_plugin_corewizard_onlinecheck, #wizard_plugin_corewizard_pluginblacklist").remove();
+                                $(".button-next").prop("disabled", false);
+                            });
+                        }, 150);
+                    }
+
+                    TrySetAuto();
+                });
+
+                //Remove stuff we set manually
+                $("#wizard_plugin_backup_link, #wizard_plugin_backup").remove();
+
+                $("#wizard_plugin_tracking_link").remove();
+                $("#wizard_plugin_corewizard_onlinecheck_link").remove();
+                $("#wizard_plugin_corewizard_pluginblacklist_link").remove();
+                $(".button-next").trigger("click");
+            }).tooltip();
+
+            console.log(typeof enableUsage);
+            console.log(typeof setup);
+
             let end = $("#wizard_firstrun_end");
 
             end.find("p:first").html("OctoPrint is not fully set up, <b>you can now get back to the SimplyPrint setup</b>");
@@ -80,17 +177,18 @@ $(function () {
         }
 
         self.pluginsLoadedCheck = function () {
+            let pluginSettings = self.settingsViewModel.settings.plugins.SimplyPrint
             if ($("#settings_plugin_pluginmanager_pluginlist tbody").html().length) {
                 //Plugins have been loaded (being called from the API async, not loaded with the page)
-                if (typeof self.pluginSettings.sp_installed_plugins === "undefined" || !Array.isArray(self.pluginSettings.sp_installed_plugins) || !self.pluginSettings.sp_installed_plugins.length) {
-                    self.pluginSettings.sp_installed_plugins = ["SimplyPrint"];
+                if (typeof pluginSettings.sp_installed_plugins === "undefined" || !Array.isArray(pluginSettings.sp_installed_plugins) || !pluginSettings.sp_installed_plugins.length) {
+                    pluginSettings.sp_installed_plugins = ["SimplyPrint"];
                 }
 
-                if (typeof self.pluginSettings.sp_installed_plugins["SimplyPrint"] === "undefined") {
-                    self.pluginSettings.sp_installed_plugins.push("SimplyPrint");
+                if (typeof pluginSettings.sp_installed_plugins["SimplyPrint"] === "undefined") {
+                    pluginSettings.sp_installed_plugins.push("SimplyPrint");
                 }
 
-                self.pluginSettings.sp_installed_plugins.forEach(function (plugin) {
+                pluginSettings.sp_installed_plugins.forEach(function (plugin) {
                     if (self.alreadyProcessedPlugins.includes(plugin)) {
                         return;
                     }
@@ -109,69 +207,59 @@ $(function () {
             }
         }
 
-        /*self.InstallSimplyPrintRequest = function () {
-            $.getJSON(API_BASEURL + "plugin/SimplyPrint", data = {password: $('#SimplyPrintPassword').val()}, function (data) {
-                //console.log("Got response");
-                //console.log(data);
-            });
-        }*/
+        self.onEventSettingsUpdated = function () {
+            self.checkSettings()
+        }
 
-        self.RequestSettings = function () {
-            $.getJSON("api/settings", function (data) {
-                let simplyprint_version = $("#simplyprint_version"),
-                    simplyprint_version_wrapper = $("#simplyprint_version_wrapper"),
-                    simplyprint_is_set_up = $("#simplyprint_is_set_up"),
-                    simplyprint_printer_name = $("#simplyprint_printer_name"),
-                    simplyprint_not_set_up = $("#simplyprint_not_set_up"),
-                    simplyprint_short_setup_code = $("#simplyprint_short_setup_code");
+        self.checkSettings = function () {
+            let pluginSettings = self.settingsViewModel.settings.plugins.SimplyPrint
+            let simplyprint_version = $("#simplyprint_version"),
+                simplyprint_version_wrapper = $("#simplyprint_version_wrapper"),
+                simplyprint_is_set_up = $("#simplyprint_is_set_up"),
+                simplyprint_printer_name = $("#simplyprint_printer_name"),
+                simplyprint_not_set_up = $("#simplyprint_not_set_up"),
+                simplyprint_short_setup_code = $("#simplyprint_short_setup_code");
 
-                self.pluginSettings = data.plugins.SimplyPrint;
+            self.pluginsLoadedCheck();
 
-                self.pluginsLoadedCheck();
+            $("#simplyprint_loading_info").stop().fadeOut("fast", function () {
+                if (pluginSettings.sp_local_installed()) {
+                    //SimplyPrint is installed!
+                    simplyprint_version_wrapper.toggle(pluginSettings.simplyprint_version().length > 0);
+                    simplyprint_version.html(pluginSettings.simplyprint_version()).stop().fadeIn();
+                    $("#simplyprint_not_installed").hide();
 
-                $("#simplyprint_loading_info").stop().fadeOut("fast", function () {
-                    simplyprint_version.html(self.pluginSettings.simplyprint_version).stop().fadeIn();
-
-                    if (self.pluginSettings.sp_local_installed) {
-                        //SimplyPrint is installed!
-                        simplyprint_version_wrapper.show();
-                        $("#simplyprint_not_installed").hide();
-
-                        if (self.pluginSettings.is_set_up) {
-                            //Is set up!
-                            displaySafeModeWarning = false;
-                            if (self.pluginSettings.printer_name === "unset" || !self.pluginSettings.printer_name.length) {
-                                simplyprint_printer_name.html("...");
-                                setTimeout(self.RequestSettings, 2500);
-                            } else {
-                                simplyprint_printer_name.html(self.pluginSettings.printer_name);
-                            }
-
-                            simplyprint_not_set_up.stop().fadeOut("fast", function () {
-                                simplyprint_is_set_up.stop().fadeIn();
-                            });
+                    if (pluginSettings.is_set_up()) {
+                        //Is set up!
+                        displaySafeModeWarning = false;
+                        if (pluginSettings.printer_name() === "unset" || !pluginSettings.printer_name().length) {
+                            simplyprint_printer_name.html("...");
                         } else {
-                            //Not set up
-                            displaySafeModeWarning = true;
-                            if (simplyprint_short_setup_code.text() !== self.pluginSettings.temp_short_setup_id) {
-                                //When trying to copy, it's quite annoying if the text is changed...
-                                simplyprint_short_setup_code.html(self.pluginSettings.temp_short_setup_id);
-                            }
-
-                            simplyprint_is_set_up.stop().fadeOut("fast", function () {
-                                simplyprint_not_set_up.stop().fadeIn();
-                            });
-                            setTimeout(self.RequestSettings, 3000);
+                            simplyprint_printer_name.html(pluginSettings.printer_name());
                         }
-                    } else {
-                        //SimplyPrint is not installed (locally)
-                        $("#simplyprint_not_installed").show();
-                        simplyprint_version_wrapper.hide();
-                        console.log("Local plugin not installed!");
 
-                        setTimeout(self.RequestSettings, 3000);
+                        simplyprint_not_set_up.stop().fadeOut("fast", function () {
+                            simplyprint_is_set_up.stop().fadeIn();
+                        });
+                    } else {
+                        //Not set up
+                        displaySafeModeWarning = true;
+                        if (simplyprint_short_setup_code.text() !== pluginSettings.temp_short_setup_id()) {
+                            //When trying to copy, it's quite annoying if the text is changed...
+                            simplyprint_short_setup_code.html(pluginSettings.temp_short_setup_id()).removeClass("dot-flashing");
+                            $("#spbiglcd").removeClass("dot-flashing").find("span").html(pluginSettings.temp_short_setup_id());
+                        }
+
+                        simplyprint_is_set_up.stop().fadeOut("fast", function () {
+                            simplyprint_not_set_up.stop().fadeIn();
+                        });
                     }
-                });
+                } else {
+                    //SimplyPrint is not installed (locally)
+                    $("#simplyprint_not_installed").show();
+                    simplyprint_version_wrapper.hide();
+                    console.log("Local plugin not installed!");
+                }
             });
         }
 
@@ -199,11 +287,74 @@ $(function () {
 
         self.DisableOverwrittenUI();
         self.OctoSetupChanges();
+
+        // Support for installing and uninstalling the SimplyPrintRpiSoftware (CP)
+        self.requestInProgress = ko.observable()
+        self.doSetup = function () {
+            console.log("installing")
+            self.requestInProgress(true);
+            OctoPrint.simpleApiCommand("SimplyPrint", "setup")
+        }
+
+        self.onDataUpdaterPluginMessage = function (plugin, data) {
+            if (plugin !== "SimplyPrint") {
+                return;
+            }
+            if (data.success) {
+                self.requestInProgress(false);
+                new PNotify({
+                    "title": "Successfully installed SimplyPrintRPiSoftware",
+                    "type": "success",
+                    "hide": true,
+                })
+            } else {
+                self.requestInProgress(false);
+                if (data.message === "sp-rpi_not_available") {
+                    new PNotify({
+                        "title": "Error installing SimplyPrintRPiSoftware",
+                        "text": "It looks like the dependency has been uninstalled. Please reinstall the plugin",
+                        "type": "error",
+                        "hide": false,
+                    })
+                } else if (data.message === "sp-rpi_error") {
+                    new PNotify({
+                        "title": "Unknown error enabling SimplyPrintRPiSoftware",
+                        "text": "Please get in contact so we can resolve this!",
+                        "type": "error",
+                        "hide": false,
+                    })
+                }
+            }
+        }
+
+        self.doUninstall = function () {
+            self.requestInProgress(true)
+            OctoPrint.simpleApiCommand("SimplyPrint", "uninstall")
+                .done(function (response) {
+                    self.requestInProgress(false);
+                    if (response.success) {
+                        new PNotify({
+                            "title": "Successfully uninstalled SimplyPrintRPiSoftware",
+                            "type": "success",
+                            "hide": true,
+                        })
+                    } else {
+                        if (response.message === "sp-rpi_not_available") {
+                            new PNotify({
+                                "title": "Error uninstalling SimplyPrintRPiSoftware",
+                                "text": "It looks like the dependency has already been uninstalled. Failed to uninstall it again",
+                                "type": "error",
+                                "hide": false,
+                            })
+                        }
+                    }
+                })
+        }
     }
 
     OCTOPRINT_VIEWMODELS.push({
         construct: SimplyprintViewModel,
         dependencies: ["settingsViewModel"],
-        elements: ["#settings_plugin_SimplyPrint", "#navbar_plugin_SimplyPrint"]
+        elements: ["#settings_plugin_SimplyPrint", "#navbar_plugin_SimplyPrint", "#SimplyPrintWelcome"]
     });
 });
