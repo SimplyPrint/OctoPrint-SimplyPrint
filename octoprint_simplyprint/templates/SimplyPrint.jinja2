@@ -10,10 +10,13 @@
     </div>
     <div class="modal-body">
         <div data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed">
-            <p id="spbiglcd" class="dot-flashing">
-                <span></span>
-                <button class="btn light"><i class="fas fa-clipboard"></i></button>
+            <p id="spbiglcd" data-bind="css: {'dot-flashing': !settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id().length}">
+                <span data-bind="text: settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id"></span>
+                <button data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.is_set_up()" class="btn light"><i class="fas fa-clipboard"></i></button>
             </p>
+            <div class="alert alert-success alert-block" data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.is_set_up">
+                <strong>Success!</strong> SimplyPrint is setup, you can now close this dialog.
+            </div>
 
             <div class="text-center">
                 <p>Use this setup code in the SimplyPrint setup if your Raspberry Pi isn't automatically detected</p>

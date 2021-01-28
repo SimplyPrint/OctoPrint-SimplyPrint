@@ -1,13 +1,31 @@
-<h4>SimplyPrint</h4>
+<h4><img alt="SimplyPrint logo" src="plugin/SimplyPrint/static/img/sp_logo.png" style="width: 25px;"> SimplyPrint</h4>
 
-<p data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed">
-    {{ _("It looks like SimplyPrint Local has already been installed, you probably don't need to do anything here") }}
+<p>There isn't much to see in here :) All settings are located in the SimplyPrint panel, and everything that needs to be
+synced to OctoPrint and your Raspberry Pi, will do so automatically.</p>
+
+<a href="https://simplyprint.io/panel" target="_blank" class="btn btn-primary">Go to the SimplyPrint panel</a>
+
+{#
+<p>
+    SimplyPrint keeps some stuff running outside of OctoPrint. This helps us be in contact with your Pi, even if
+    OctoPrint is crashed. We also try to automatically start OctoPrint up again, if it crashed.
 </p>
-<button type="button" class="btn btn-primary" data-bind="click: doSetup, enable: !requestInProgress()">
-    <i class="fa" data-bind="css: {'fa-spinner fa-spin' : requestInProgress()}"></i>
-    {{ _("Setup SimplyPrint Local") }}
-</button>
-<button type="button" class="btn btn-danger" data-bind="click: doUninstall, enable: !requestInProgress()">
-    <i class="fa" data-bind="css: {'fa-spinner fa-spin' : requestInProgress()}"></i>
-    {{ _("Uninstall SimplyPrint Local") }}
-</button>
+
+<p>
+    Without the software running outside of OctoPrint, SimplyPrint will not work.
+</p>
+
+<div data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed()">
+    <button type="button" class="btn btn-primary" data-bind="click: doSetup, enable: !requestInProgress()">
+        <i class="fa" data-bind="css: {'fa-spinner fa-spin' : requestInProgress()}"></i>
+        {{ _("Setup SimplyPrint Local") }}
+    </button>
+</div>
+
+<div data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed">
+    <button type="button" class="btn btn-danger" data-bind="click: doUninstall, enable: !requestInProgress()">
+        <i class="fa" data-bind="css: {'fa-spinner fa-spin' : requestInProgress()}"></i>
+        Uninstall SimplyPrint local
+    </button>
+</div>
+#}

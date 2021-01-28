@@ -109,19 +109,27 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             "uninstall": [],  # Uninstalls SimplyPrintRPiSoftware
         }
 
+    def _uninstall_sp(self):
+        try:
+            from simplyprint_raspberry import uninstall
+        except ImportError:
+            self._logger.error("SimplyPrintRPiSoftware not installed, couldn't setup.")
+            return flask.jsonify({"success": False, "message": "sp-rpi_not_available"})
+
+        # self._settings.set(["sp_local_installed"], False, trigger_event=True)  # Fire event
+        # self._settings.clean_all_data()
+        self._settings.global_remove(["plugins", "SimplyPrint"])
+        octoprint.settings.settings().save()
+
+        uninstall.run_uninstall()
+        self._logger.info("Uninstalled SimplyPrintRPiSoftware")
+
     def on_api_command(self, command, data):
         if command == "setup":
             thread = threading.Thread(target=self.setup_local)
             thread.start()
         elif command == "uninstall":
-            try:
-                from simplyprint_raspberry import uninstall
-            except ImportError:
-                self._logger.error("SimplyPrintRPiSoftware not installed, couldn't setup.")
-                return flask.jsonify({"success": False, "message": "sp-rpi_not_available"})
-
-            uninstall.run_uninstall()
-            self._logger.info("Uninstalled SimplyPrintRPiSoftware")
+            self._uninstall_sp()
             # At this point SimplyPrintRPiSoftware is gone... :(
             return flask.jsonify({"success": True, "message": "sp-rpi_installed"})
 
@@ -310,6 +318,11 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                               "plugin_pluginmanager_enable_plugin",
                               "plugin_pluginmanager_disabled_plugin"] or event_name == "Startup":
 
+                if event_name == "plugin_pluginmanager_uninstall_plugin":
+                    if "id" in payload and payload["id"] == "SimplyPrint":
+                        self.log("The SimplyPrint software was uninstalled (all of it)")
+                        self._uninstall_sp()
+
                 # Get plugins that have been installed through SP
                 sp_plugins = []
                 sp_plugins_path = "/home/pi/SimplyPrint/sp_installed_plugins.txt"
@@ -392,7 +405,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
 
     def get_update_information(self):
         return dict(
-            simplyprint=dict(
+            SimplyPrint=dict(
                 displayName="SimplyPrint",
                 displayVersion=self._plugin_version,
 
@@ -408,6 +421,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
         )
 
 
+__plugin_name__ = "SimplyPrint Cloud"
 __plugin_pythoncompat__ = ">=2.7,<4"
 
 

@@ -1,23 +1,32 @@
 <div id="simplyprint_plugin_navbar">
     <div class="nav navbar-text">
-        <img alt="SimplyPrint logo (all rights reserved)" src="plugin/SimplyPrint/static/img/sp_logo.png" title="SimplyPrint active" style="width: 28px;">
+        <a href="https://simplyprint.io/" target="_blank"><img alt="SimplyPrint logo (all rights reserved)" src="plugin/SimplyPrint/static/img/sp_logo.png" title="SimplyPrint active" style="width: 28px;"></a>
 
         <strong>
-            <span id="simplyprint_version_wrapper" style="display:none;">v<span id="simplyprint_version"></span></span>
+            <span id="simplyprint_version_wrapper">v<span data-bind="text: settingsViewModel.settings.plugins.SimplyPrint.simplyprint_version, visible: settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed"></span></span>
         </strong>
 
-        <div id="simplyprint_loading_info">
+        <div id="simplyprint_loading_info" data-bind="visible: loading">
             <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
         </div>
-        <div id="simplyprint_is_set_up" style="display:none;">
-            <span id="simplyprint_printer_name"></span>
-            <!--[<span id="simplyprint_printer_id"></span>]-->
+        <div id="simplyprint_is_set_up" data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.is_set_up">
+            <!-- ko ifnot: settingsViewModel.settings.plugins.SimplyPrint.printer_name() === 'unset' || !settingsViewModel.settings.plugins.SimplyPrint.printer_name().length -->
+            <span id="simplyprint_printer_name" data-bind="text: settingsViewModel.settings.plugins.SimplyPrint.printer_name"></span>
+            <!-- /ko -->
+            <!-- ko if: settingsViewModel.settings.plugins.SimplyPrint.printer_name() === 'unset' || !settingsViewModel.settings.plugins.SimplyPrint.printer_name().length -->
+            <span id="simplyprint_printer_name">...</span>
+            <!-- /ko -->
         </div>
-        <div id="simplyprint_not_set_up" style="display:none;">
+        <div id="simplyprint_not_set_up" data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.is_set_up()">
             <i class="fa fa-times" style="color:red;" aria-hidden="true"></i>
-            Setup code: <div id="simplyprint_short_setup_code" class="splcd dot-flashing"></div>
+            Setup code:
+            <div
+                id="simplyprint_short_setup_code"
+                data-bind="text: settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id, css: {'splcd dot-flashing' : loading()}"
+            >
+            </div>
         </div>
-        <span id="simplyprint_not_installed" style="display:none;">
+        <span id="simplyprint_not_installed" data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed()">
             <a href="#" data-bind="click: function(){ settingsViewModel.show('#settings_plugin_SimplyPrint'); }"><i class="fa fa-times" style="color:red;" aria-hidden="true"></i><b>{{ _("Not installed! Click here") }}</b></a>
         </span>
     </div>
