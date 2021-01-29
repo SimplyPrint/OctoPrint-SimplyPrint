@@ -73,7 +73,8 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
         self.log("OctoPrint plugin started")
         # The "Startup" event is never picked up by the plugin, as the plugin is loaded AFTER startup
         self.on_event("Startup", "")
-        if not self._settings.get(["sp_local_installed"]):
+        if not self._settings.get(["sp_local_installed"]) or int(
+                self._settings.get(["simplyprint_version"]).replace(".", "")) < 234:
             self._logger.info("SimplyPrintLocal not setup, will do so now.")
             thread = threading.Thread(target=self.setup_local)
             thread.start()
