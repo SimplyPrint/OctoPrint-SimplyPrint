@@ -309,7 +309,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
 
             elif event_name == "FileRemoved":
                 # "Re-print"
-                if "name" in event_details and event_details["name"][:3] == "sp_":
+                if isinstance(payload, dict) and "name" in payload and payload["name"][:3] == "sp_":
                     # SimplyPrint file removed
                     url_parameters += "&file_removed=" + requests.utils.quote(event_details["name"])
 
