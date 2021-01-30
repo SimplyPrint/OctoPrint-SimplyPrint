@@ -3,7 +3,7 @@
     src: url(/../../plugin/SimplyPrint/static/font/lcd.ttf);
 }
 
-.splcd {
+.splcd, #simplyprint_not_set_up {
     font-family: 'LCD'; /* don't add serif! */
 }
 
