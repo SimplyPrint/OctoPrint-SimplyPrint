@@ -1,4 +1,4 @@
-// source: https://simplyprint.dk/
+// source: https://simplyprint.io/
 /*
  * JavaScript file for SimplyPrint (c)
  *
@@ -127,51 +127,64 @@ $(function () {
             $("#wizard_firstrun_start p:first").html("Let's set up OctoPrint, and get back to the SimplyPrint setup!");
             $("#wizard_plugin_corewizard_printerprofile, #wizard_plugin_corewizard_printerprofile_link").remove();
 
-            $("#wizard_firstrun_start").append(`<hr><p>
-                Just interested in a quick setup? Use the SimplyPrint-recommended OctoPrint setup settings;
-            </p>
-            <button id="setupwizard_sprecommended" class="btn btn-primary" data-toggle="tooltip" title="This is what we do; enable Anonymous Usage Tracking, enable Online Connectivity Check and enable the plugin blacklist. All these settings help you, us and OctoPrint - win win!">
-                <img alt="SimplyPrint logo" src="plugin/SimplyPrint/static/img/sp_white_sm.png" style="width:25px;"> Use recommended settings
-            </button>`);
+            //Recommended settings?
+            if ($("#wizard_plugin_tracking, #wizard_plugin_corewizard_onlinecheck, #wizard_plugin_corewizard_pluginblacklist").length) {
+                //The settings we're setting exists
+                $("#wizard_firstrun_start").append(`<hr><p>
+                    Just interested in a quick setup? Use the SimplyPrint-recommended OctoPrint setup settings;
+                </p>
+                
+                <button id="setupwizard_sprecommended" class="btn btn-primary" data-toggle="tooltip" title="This is what we do; enable Anonymous Usage Tracking, enable Online Connectivity Check and enable the plugin blacklist. All these settings help you, us and OctoPrint - win win!">
+                    <img alt="SimplyPrint logo" src="plugin/SimplyPrint/static/img/sp_white_sm.png" style="width:25px;"> Use recommended settings
+                </button>`);
 
-            $("#wizard_plugin_corewizard_acl p:first").remove();
-            $(`<p style="margin-bottom:20px;">
-                Here you must set up a local OctoPrint account. The login information is only stored on the Raspberry Pi,
-                and used to log in to OctoPrint. This login is not to be confused with the SimplyPrint account you've made.
-            </p>`)
-                .insertAfter($("#wizard_plugin_corewizard_acl h3:first").html("Access Control <i>(OctoPrint login)</i>"));
+                $("#wizard_plugin_corewizard_acl p:first").remove();
+                $(`<p style="margin-bottom:20px;">
+                    Here you must set up a local OctoPrint account. The login information is only stored on the Raspberry Pi,
+                    and used to log in to OctoPrint. This login is not to be confused with the SimplyPrint account you've made.
+                </p>`).insertAfter($("#wizard_plugin_corewizard_acl h3:first").html("Access Control <i>(OctoPrint login)</i>"));
 
-            $("#setupwizard_sprecommended").on("click", function () {
-                //On click of "Create account"
-                $("#wizard_plugin_corewizard_acl .controls .btn.btn-primary[data-bind]").on("click", function () {
-                    $(".button-next").prop("disabled", true);
-
+                $("#setupwizard_sprecommended").on("click", function () {
                     function TrySetAuto() {
                         setTimeout(function () {
                             OctoPrint.postJson("api/settings", {}).fail(function () {
+                                //Will fail if user isn't set up yet
                                 TrySetAuto();
                             }).done(function () {
                                 //All good!
-                                $("#wizard_plugin_tracking .btn.btn-primary[data-bind]").trigger("click");
-                                $("#wizard_plugin_corewizard_onlinecheck .btn.btn-primary[data-bind]").trigger("click");
+                                $("#wizard_plugin_tracking .btn.btn-primary[data-bind]").trigger("click"); //good
+                                $("#wizard_plugin_corewizard_onlinecheck .btn.btn-primary[data-bind]").trigger("click"); //good
                                 $("#wizard_plugin_corewizard_pluginblacklist .btn.btn-primary[data-bind]").trigger("click");
                                 $("#wizard_plugin_tracking, #wizard_plugin_corewizard_onlinecheck, #wizard_plugin_corewizard_pluginblacklist").remove();
-                                $(".button-next").prop("disabled", false);
+                                setTimeout(function () {
+                                    $(".button-next").prop("disabled", false);
+                                }, 500);
                             });
                         }, 150);
                     }
 
-                    TrySetAuto();
-                });
+                    if ($("#wizard_plugin_corewizard_acl_link").length) {
+                        //Has to set up access control
+                        //On click of "Create account"
+                        $("#wizard_plugin_corewizard_acl .controls .btn.btn-primary[data-bind]").on("click", function () {
+                            $(".button-next").prop("disabled", true);
 
-                //Remove stuff we set manually
-                $("#wizard_plugin_backup_link, #wizard_plugin_backup").remove();
+                            TrySetAuto();
+                        });
+                    } else {
+                        //Access control already set up
+                        TrySetAuto();
+                    }
 
-                $("#wizard_plugin_tracking_link").remove();
-                $("#wizard_plugin_corewizard_onlinecheck_link").remove();
-                $("#wizard_plugin_corewizard_pluginblacklist_link").remove();
-                $(".button-next").trigger("click");
-            }).tooltip();
+                    //Remove stuff we set manually
+                    $("#wizard_plugin_backup_link, #wizard_plugin_backup").remove();
+
+                    $("#wizard_plugin_tracking_link").remove();
+                    $("#wizard_plugin_corewizard_onlinecheck_link").remove();
+                    $("#wizard_plugin_corewizard_pluginblacklist_link").remove();
+                    $(".button-next").trigger("click");
+                }).tooltip();
+            }
 
             let end = $("#wizard_firstrun_end");
 
@@ -228,7 +241,7 @@ $(function () {
             $("#settings_printerProfiles .btn").prop("disabled", true);
 
             //GCODE scripts
-            $("#settings_gcodeScripts .form-horizontal").prepend(self.ManagedBySimplyPrintAlert("The disabled fields can be changed through the SimplyPrint panel <a href='https://simplyprint.dk/panel/gcode_profiles' target='_blank'>from the \"GCODE profiles\" tab</a>. The original GCODE from fields we have replaced is backed up ", true));
+            $("#settings_gcodeScripts .form-horizontal").prepend(self.ManagedBySimplyPrintAlert("The disabled fields can be changed through the SimplyPrint panel <a href='https://simplyprint.io/panel/gcode_profiles' target='_blank'>from the \"GCODE profiles\" tab</a>. The original GCODE from fields we have replaced is backed up ", true));
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_afterPrintCancelled\"]").prop("disabled", true);
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_afterPrintPaused\"]").prop("disabled", true);
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_beforePrintResumed\"]").prop("disabled", true);
