@@ -10,9 +10,9 @@
     </div>
     <div class="modal-body">
         <div data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed">
-            <p id="spbiglcd" data-bind="css: {'dot-flashing': !settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id().length}, visible: !settingsViewModel.settings.plugins.SimplyPrint.is_set_up">
+            <p id="spbiglcd" data-bind="css: {'dot-flashing': !settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id().length}, visible: !settingsViewModel.settings.plugins.SimplyPrint.is_set_up()">
                 <span data-bind="text: settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id"></span>
-                <button data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.is_set_up()" class="btn light"><i class="fas fa-clipboard"></i></button>
+                <button class="btn light"><i class="fas fa-clipboard"></i></button>
             </p>
             <div class="alert alert-success alert-block" data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.is_set_up">
                 <strong>Success!</strong> SimplyPrint is set up, you can now close this dialog.
