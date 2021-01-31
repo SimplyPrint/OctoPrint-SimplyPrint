@@ -311,7 +311,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                 # "Re-print"
                 if isinstance(payload, dict) and "name" in payload and payload["name"][:3] == "sp_":
                     # SimplyPrint file removed
-                    url_parameters += "&file_removed=" + requests.utils.quote(event_details["name"])
+                    url_parameters += "&file_removed=" + requests.utils.quote(payload["name"])
 
             # Not "ELif" as we also want to check for "Startup" once again
             if event_name in ["plugin_pluginmanager_install_plugin",
