@@ -17,6 +17,12 @@ $(function () {
 
     let copiedTimeout = null;
 
+    //Detect if we're using Fontawesome 4
+    if (!$("#navbar_show_settings").hasClass("fas")) {
+        $("#SimplyPrintWelcome button i.fas.fa-clipboard").removeClass("fas").addClass("fa");
+        $("#SimplyPrintWelcome a.btn.btn-primary i.fas").attr("class", "fa fa-sign-in");
+    }
+
     $("#spbiglcd button").on("click", function () {
         let el = $(this).prev();
 
@@ -51,21 +57,7 @@ $(function () {
     });
 
     function SimplyprintViewModel(parameters) {
-        let self = this,
-            displaySafeModeWarning = false;
-
-        $("body").on("click", "#navbar_systemmenu ul li:nth-child(4)", function () {
-            console.log("Clicked the safe mode button!");
-
-            if (displaySafeModeWarning) {
-                setTimeout(function () {
-                    $(".modal.in .modal-body").append("<hr><h4><strong>SimplyPrint will restart OctoPrint once it sees it's in safe mode, reverting to non-safe mode!</strong></h4><p>" +
-                        "This is being done as OctoPrint sometimes start in safe mode for first instances due to setup complications.</p>" +
-                        "<p>Once SimplyPrint takes OctoPrint out of safe mode, it won't do so again for the next 10 minutes, so doing it twice in a row will give you 10 minutes in safe mode.</p>" +
-                        "<p>To avoid SimplyPrint taking OctoPrint out of setup mode, please set up SimplyPrint or remove the SimplyPrint software from your Raspberry Pi <i>(it's not enough to disable the SimplyPrint OctoPrint plugin)</i>.</p>");
-                }, 500);
-            }
-        });
+        let self = this;
 
         self.settingsViewModel = parameters[0];
         self.pluginSettings = null;
@@ -80,6 +72,19 @@ $(function () {
             }
             self.loading(false)
         }
+
+        $("body").on("click", "#navbar_systemmenu ul li:nth-child(4)", function () {
+            console.log("Clicked the safe mode button!");
+
+            if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up()) {
+                setTimeout(function () {
+                    $(".modal.in .modal-body").append("<hr><h4><strong>SimplyPrint will restart OctoPrint once it sees it's in safe mode, reverting to non-safe mode!</strong></h4><p>" +
+                        "This is being done as OctoPrint sometimes start in safe mode for first instances due to setup complications.</p>" +
+                        "<p>Once SimplyPrint takes OctoPrint out of safe mode, it won't do so again for the next 10 minutes, so doing it twice in a row will give you 10 minutes in safe mode.</p>" +
+                        "<p>To avoid SimplyPrint taking OctoPrint out of setup mode, please set up SimplyPrint or remove the SimplyPrint software from your Raspberry Pi <i>(it's not enough to disable the SimplyPrint OctoPrint plugin)</i>.</p>");
+                }, 500);
+            }
+        });
 
         self.OctoSetupChanges = function () {
             $("body").prepend(`<div id="simplyprint_dialog" class="modal hide fade" data-keyboard="true" aria-hidden="true">
