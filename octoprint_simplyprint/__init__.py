@@ -90,6 +90,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             printer_id="",
             simplyprint_version="",
             temp_short_setup_id="",
+            from_image=False,
             sp_installed_plugins="",
         )
 

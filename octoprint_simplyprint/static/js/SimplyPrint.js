@@ -234,14 +234,22 @@ $(function () {
 
         self.DisableOverwrittenUI = function () {
             //Printer profiles
+            /*$("#settings_printerProfiles_profiles tbody tr").each(function () {
+                if ($(this).attr("title").substr(0, 4) === "[SP]") {
+                    $(this).find("a.fa-pencil, a.fa-trash-o").css({
+                        "pointer-events": "none",
+                        "opacity": "0.4"
+                    });
+                }
+            });*/
             $("#settings_printerProfiles_profiles").css({
                 "pointer-events": "none",
                 "opacity": "0.4"
-            }).parent().prepend(self.ManagedBySimplyPrintAlert("The printer profile is derived directly from your printer settings. If you modify your printer settings in SimplyPrint, they will be synced with OctoPrint"));
+            }).parent().prepend(self.ManagedBySimplyPrintAlert("The printer profile is derived directly from your printer settings. If you modify your printer settings in SimplyPrint, they will be synced with OctoPrint."));
             $("#settings_printerProfiles .btn").prop("disabled", true);
 
             //GCODE scripts
-            $("#settings_gcodeScripts .form-horizontal").prepend(self.ManagedBySimplyPrintAlert("The disabled fields can be changed through the SimplyPrint panel <a href='https://simplyprint.io/panel/gcode_profiles' target='_blank'>from the \"GCODE profiles\" tab</a>. The original GCODE from fields we have replaced is backed up ", true));
+            $("#settings_gcodeScripts .form-horizontal").prepend(self.ManagedBySimplyPrintAlert("The disabled fields can be changed through the SimplyPrint panel <a href='https://simplyprint.io/panel/gcode_profiles' target='_blank'>from the \"GCODE profiles\" tab</a>. The original GCODE from fields we have replaced is backed up and syncronized to SimplyPrint.", true));
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_afterPrintCancelled\"]").prop("disabled", true);
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_afterPrintPaused\"]").prop("disabled", true);
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_beforePrintResumed\"]").prop("disabled", true);

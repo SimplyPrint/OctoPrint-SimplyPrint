@@ -9,12 +9,22 @@
         </h3>
     </div>
     <div class="modal-body">
+        <div data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed()">
+            <p>It looks like SimplyPrint wasn't setup properly locally. To try again, click below:</p>
+            <button type="button" class="btn btn-primary" data-bind="click: doSetup, enable: !requestInProgress()">
+                <i class="fa" data-bind="css: {'fa-spinner fa-spin' : requestInProgress()}"></i>
+                {{ _("Setup SimplyPrint Local") }}
+            </button>
+        </div>
+
         <div data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed">
-            <p id="spbiglcd" data-bind="css: {'dot-flashing': !settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id().length}, visible: !settingsViewModel.settings.plugins.SimplyPrint.is_set_up()">
+            <p id="spbiglcd"
+               data-bind="css: {'dot-flashing': !settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id().length}, visible: !settingsViewModel.settings.plugins.SimplyPrint.is_set_up()">
                 <span data-bind="text: settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id"></span>
                 <button class="btn light"><i class="fas fa-clipboard"></i></button>
             </p>
-            <div class="alert alert-success alert-block" data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.is_set_up">
+            <div class="alert alert-success alert-block"
+                 data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.is_set_up">
                 <strong>Success!</strong> SimplyPrint is set up, you can now close this dialog.
             </div>
 
@@ -30,21 +40,38 @@
                     <li>Web panel, iOS and Android app</li>
                     <li><i>and much, much, more...</i></li>
                 </ul>
-                <a href="https://simplyprint.io/signup" target="_blank" class="btn btn-primary" style="margin-top:10px;">
+                <a href="https://simplyprint.io/signup" target="_blank" class="btn btn-primary"
+                   style="margin-top:10px;">
                     <i class="fas fa-sign-in-alt"></i> Sign up for free - it only takes 5 minutes
                 </a>
                 <p class="spwelcome-text-muted">
                     * free forever, no credit card required for our free "Basic" plan
                 </p>
             </div>
-        </div>
-        
-        <div data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed()">
-            <p>It looks like SimplyPrint wasn't setup properly locally. To try again, click below:</p>
-            <button type="button" class="btn btn-primary" data-bind="click: doSetup, enable: !requestInProgress()">
-                <i class="fa" data-bind="css: {'fa-spinner fa-spin' : requestInProgress()}"></i>
-                {{ _("Setup SimplyPrint Local") }}
-            </button>
+
+            <div class="text-center" data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.from_image()">
+                <hr>
+                <h4>What does SimplyPrint change / control in OctoPrint?</h4>
+                <p>
+                    There are a few OctoPrint-features which SimplyPrint takes control of - but don't worry, nothing is
+                    gone, and the features SimplyPrint controls is changed through the SimplyPrint panel instead.
+                </p>
+                <ul class="text-left">
+                    <li>
+                        <b>Printer profile:</b>
+                        <span class="help-inline">
+                            Your old printer profile is saved, but an automatic one has been created and set to default by us, with all the correct settings <i>(non-stock settings like bounding box and heated chamber is not set)</i>
+                        </span>
+                    </li>
+                    <li>
+                        <b>GCODE scripts:</b>
+                        <span class="help-inline">
+                            The GCODE scripts for; <i>after cancel, after pause, before resume</i> is being controlled by the SimplyPrint GCODE profile manager instead.
+                            If you have your own GCODE scritps set in the OctoPrint settings, they have been syncronized to SimplyPrint - nothing is lost :)
+                        </span>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
     <div class="modal-footer">
