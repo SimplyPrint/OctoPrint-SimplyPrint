@@ -77,12 +77,19 @@ $(function () {
         function SetupRecommended() {
             setTimeout(function () {
                 OctoPrint.coreui.viewmodels.usageViewModel.required = false;
+                OctoPrint.coreui.viewmodels.usageViewModel.setup(true);
                 OctoPrint.coreui.viewmodels.coreWizardOnlineCheckViewModel.required = false;
+                OctoPrint.coreui.viewmodels.coreWizardOnlineCheckViewModel.setup(true);
                 OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.required = false;
+                OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.setup(true);
 
                 OctoPrint.coreui.viewmodels.usageViewModel.enableUsage();
                 OctoPrint.coreui.viewmodels.coreWizardOnlineCheckViewModel.enableOnlineCheck();
                 OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.enablePluginBlacklist();
+
+                OctoPrint.coreui.viewmodels.coreWizardOnlineCheckViewModel.active = false;
+                OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.active = false;
+                OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.active = false;
             }, 100);
         }
 
