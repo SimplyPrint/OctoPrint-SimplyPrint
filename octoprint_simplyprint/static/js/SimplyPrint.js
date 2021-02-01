@@ -62,20 +62,39 @@ $(function () {
         self.settingsViewModel = parameters[0];
         self.pluginSettings = null;
         self.alreadyProcessedPlugins = [];
+        self.awaitingAccCreate = false;
 
-
-        self.loading = ko.observable(true)
+        self.loading = ko.observable(true);
 
         self.onAfterBinding = function () {
             if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up()) {
                 $('#SimplyPrintWelcome').modal("show");
             }
-            self.loading(false)
+
+            self.loading(false);
+        }
+
+        function SetupRecommended() {
+            setTimeout(function () {
+                OctoPrint.coreui.viewmodels.usageViewModel.required = false;
+                OctoPrint.coreui.viewmodels.coreWizardOnlineCheckViewModel.required = false;
+                OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.required = false;
+
+                OctoPrint.coreui.viewmodels.usageViewModel.enableUsage();
+                OctoPrint.coreui.viewmodels.coreWizardOnlineCheckViewModel.enableOnlineCheck();
+                OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.enablePluginBlacklist();
+            }, 100);
+        }
+
+        self.onAllBound = function () {
+            OctoPrint.coreui.viewmodels.loginStateViewModel.loggedIn.subscribe(function () {
+                if (self.awaitingAccCreate) {
+                    SetupRecommended();
+                }
+            });
         }
 
         $("body").on("click", "#navbar_systemmenu ul li:nth-child(4)", function () {
-            console.log("Clicked the safe mode button!");
-
             if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up()) {
                 setTimeout(function () {
                     $(".modal.in .modal-body").append("<hr><h4><strong>SimplyPrint will restart OctoPrint once it sees it's in safe mode, reverting to non-safe mode!</strong></h4><p>" +
@@ -87,7 +106,7 @@ $(function () {
         });
 
         self.OctoSetupChanges = function () {
-            $("body").prepend(`<div id="simplyprint_dialog" class="modal hide fade" data-keyboard="true" aria-hidden="true">
+            /*$("body").prepend(`<div id="simplyprint_dialog" class="modal hide fade" data-keyboard="true" aria-hidden="true">
                 <div class="modal-header">
                     <h3 class="text-center">SimplyPrint ready</h3>
                 </div>
@@ -122,7 +141,7 @@ $(function () {
                         <button class="btn" data-dismiss="modal" type="button">Close</button>
                     </div>        
                 </div>
-            </div>`);
+            </div>`);*/
 
             $("#wizard_firstrun_start p:first").html("Let's set up OctoPrint, and get back to the SimplyPrint setup!");
             $("#wizard_plugin_corewizard_printerprofile, #wizard_plugin_corewizard_printerprofile_link").remove();
@@ -145,20 +164,25 @@ $(function () {
                 </p>`).insertAfter($("#wizard_plugin_corewizard_acl h3:first").html("Access Control <i>(OctoPrint login)</i>"));
 
                 $("#setupwizard_sprecommended").on("click", function () {
-                    function TrySetAuto() {
+                    /*function TrySetAuto() {
                         setTimeout(function () {
                             OctoPrint.postJson("api/settings", {}).fail(function () {
                                 //Will fail if user isn't set up yet
                                 TrySetAuto();
                             }).done(function () {
                                 //All good!
-                                $("#wizard_plugin_tracking .btn.btn-primary[data-bind]").trigger("click"); //good
-                                $("#wizard_plugin_corewizard_onlinecheck .btn.btn-primary[data-bind]").trigger("click"); //good
-                                $("#wizard_plugin_corewizard_pluginblacklist .btn.btn-primary[data-bind]").trigger("click");
-                                $("#wizard_plugin_tracking, #wizard_plugin_corewizard_onlinecheck, #wizard_plugin_corewizard_pluginblacklist").remove();
+                                OctoPrint.coreui.viewmodels.usageViewModel.enableUsage();
+                                OctoPrint.coreui.viewmodels.usageViewModel.required = false;
+
+                                OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.enablePluginBlacklist();
+                                OctoPrint.coreui.viewmodels.coreWizardPluginBlacklistViewModel.required = false;
+
+                                OctoPrint.coreui.viewmodels.coreWizardOnlineCheckViewModel.enableOnlineCheck();
+                                OctoPrint.coreui.viewmodels.coreWizardOnlineCheckViewModel.required = false;
+
                                 setTimeout(function () {
-                                    $(".button-next").prop("disabled", false);
-                                }, 500);
+                                    $("#wizard_plugin_tracking, #wizard_plugin_corewizard_onlinecheck, #wizard_plugin_corewizard_pluginblacklist").remove();
+                                }, 100);
                             });
                         }, 150);
                     }
@@ -167,18 +191,22 @@ $(function () {
                         //Has to set up access control
                         //On click of "Create account"
                         $("#wizard_plugin_corewizard_acl .controls .btn.btn-primary[data-bind]").on("click", function () {
-                            $(".button-next").prop("disabled", true);
-
                             TrySetAuto();
                         });
                     } else {
                         //Access control already set up
                         TrySetAuto();
+                    }*/
+
+                    if (!$("#wizard_plugin_corewizard_acl_link").length) {
+                        //Access Control already set up, don't wait for it
+                        SetupRecommended();
+                    } else {
+                        self.awaitingAccCreate = true;
                     }
 
                     //Remove stuff we set manually
                     $("#wizard_plugin_backup_link, #wizard_plugin_backup").remove();
-
                     $("#wizard_plugin_tracking_link").remove();
                     $("#wizard_plugin_corewizard_onlinecheck_link").remove();
                     $("#wizard_plugin_corewizard_pluginblacklist_link").remove();
@@ -189,9 +217,9 @@ $(function () {
             let end = $("#wizard_firstrun_end");
 
             end.find("p:first").html("OctoPrint is not fully set up, <b>you can now get back to the SimplyPrint setup</b>");
-            $("#wizard_dialog .button-finish[name='finish']").on("click", function () {
+            /*$("#wizard_dialog .button-finish[name='finish']").on("click", function () {
                 $("#simplyprint_dialog").modal("show");
-            });
+            });*/
         }
 
         self.pluginsLoadedCheck = function () {
