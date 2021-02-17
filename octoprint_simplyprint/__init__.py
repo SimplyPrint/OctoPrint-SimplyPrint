@@ -68,6 +68,15 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             "FileRemoved"
         ]
 
+    def on_startup(self, host, port):
+        ip = host
+
+        if port:
+            ip += str(port)
+
+        self._logger.info("Host is; " + str(host) + " and port is; " + str(port))
+        self.send_port_ip(None, ip)
+
     # #~~ StartupPlugin mixin
     def on_after_startup(self):
         self.log("OctoPrint plugin started")
@@ -162,6 +171,30 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
         octoprint.settings.settings().save(trigger_event=True)
         self._plugin_manager.send_plugin_message("SimplyPrint", {"success": True, "message": "sp-rpi_installed"})
 
+    # Send public port to outside system
+    def send_port_ip(self, port=None, ip=None):
+        self._logger.info("Sending port to SimplyPrintLocal")
+        try:
+            from simplyprint_raspberry import port_ip_comm
+
+        except ImportError:
+            self._logger.error("SimplyPrintRPiSoftware not installed - plugin must be reinstalled")
+            self._plugin_manager.send_plugin_message("SimplyPrint",
+                                                     {"success": False, "message": "sp-rpi_not_available"})
+            return
+        try:
+            if port is not None:
+                port_ip_comm.save_port(port)
+
+            if ip is not None:
+                port_ip_comm.save_port(ip)
+
+        except Exception as e:
+            self._logger.error(repr(e))
+            self._logger.error("Failed to setup SimplyPrintRPiSoftware")
+            self._plugin_manager.send_plugin_message("SimplyPrint", {"success": False, "message": "spi-rpi_error"})
+            return
+
     def on_api_get(self, request):
         import flask
         import subprocess
@@ -172,13 +205,16 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
             if request.args.get("install", default=None, type=None) is not None:
                 # Install
                 pass
+            if request.args.get("send_port", default=None, type=None) is not None:
+                # Send port to local scripts
+                port = str(request.args.get("send_port", default=None, type=None))
+                self.send_port_ip(port)
             if request.args.get("rpi_id", default=None, type=None) is not None:
                 # Get RPI id
                 pass
             if request.args.get("do_gcode", default=None, type=None) is not None:
                 # Execute GCODE
                 gcode_todo = str(request.args.get("do_gcode", default=None, type=None))
-                self.log("Should do GCODE; " + gcode_todo)
                 self._printer.commands(gcode_todo.split(","))
                 pass
             if request.args.get("power_controller", default=None, type=None) is not None:
@@ -209,7 +245,10 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
                 except:
                     pass
 
-    def log(self, msg):
+    def log(self, msg, debug=False):
+        if debug:
+            self._logger.debug("[SimplyPrint] " + msg)
+
         self._logger.info("[SimplyPrint] " + msg)
 
     # #-- EventHandler mixin
@@ -359,11 +398,16 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
 
                 base_url += url_parameters + "&event&pstatus=" + printer_state
                 url = base_url.replace(" ", "%20")
-                self.log("Doing web request from event. Url is;\n" + str(url) + "\n")
+                self.log("Doing web request from event. Url is;\n" + str(url) + "\n", True)
 
                 # "requests" solution
                 r = None
                 the_json = None
+
+                try:
+                    requests.packages.urllib3.disable_warnings()  # TODO; check if works
+                except:
+                    pass
 
                 try:
                     r = requests.get(url, allow_redirects=True, verify=False)

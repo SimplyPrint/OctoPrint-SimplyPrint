@@ -71,6 +71,11 @@ $(function () {
                 $('#SimplyPrintWelcome').modal("show");
             }
 
+            if (self.settingsViewModel.settings.plugins.SimplyPrint.public_port() !== location.port) {
+                //Send it
+                OctoPrint.simpleApiGet("SimplyPrint?send_port=" + location.port);
+            }
+
             self.loading(false);
         }
 
