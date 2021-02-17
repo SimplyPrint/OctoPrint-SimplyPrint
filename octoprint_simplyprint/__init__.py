@@ -192,7 +192,7 @@ class SimplyPrint(octoprint.plugin.SettingsPlugin,
         except Exception as e:
             self._logger.error(repr(e))
             self._logger.error("Failed to setup SimplyPrintRPiSoftware")
-            self._plugin_manager.send_plugin_message("SimplyPrint", {"success": False, "message": "spi-rpi_error"})
+            # self._plugin_manager.send_plugin_message("SimplyPrint", {"success": False, "message": "spi-rpi_error"})
             return
 
     def on_api_get(self, request):
