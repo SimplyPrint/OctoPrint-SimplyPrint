@@ -69,7 +69,7 @@ class CronManager:
 
 def create_cron_jobs():
     cron = CronManager()
-    cron.add(True, background_command, background_comment)
+    cron.add(True, background_command, background_comment, True)
 
 
 def check_cron_jobs():
