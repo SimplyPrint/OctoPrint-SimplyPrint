@@ -48,32 +48,36 @@ class SimplyPrintBackground:
         self.octoprint = OctoPrintClient("http://127.0.0.1", self._octoprint_settings.get(["api", "key"]))
 
         while self.run:
-            start = time.time()
+            try:
+                start = time.time()
 
-            check_result = self.check_octoprint()
-            if not check_result:
-                # :(
-                self._logger.warning("OctoPrint is not OK... Trying to restart it now")
-            else:
-                self._logger.debug("OctoPrint seems OK")
-
-                safe_mode = self.check_safemode()
-                if not safe_mode:
-                    self._logger.warning("OctoPrint is in safe mode")
-                    if self.safe_mode_checks == 0 or self.safe_mode_checks > 10:
-                        # Restart immediately, or after more than 10 mins
-                        self.restart_octoprint()
-                        self.safe_mode_checks = 0
-
+                check_result = self.check_octoprint()
+                if not check_result:
+                    # :(
+                    self._logger.warning("OctoPrint is not OK... Trying to restart it now")
                 else:
-                    self._logger.debug("OctoPrint is not in safe mode")
+                    self._logger.debug("OctoPrint seems OK")
 
-                self.safe_mode_checks += 1
+                    safe_mode = self.check_safemode()
+                    if not safe_mode:
+                        self._logger.warning("OctoPrint is in safe mode")
+                        if self.safe_mode_checks == 0 or self.safe_mode_checks > 10:
+                            # Restart immediately, or after more than 10 mins
+                            self.restart_octoprint()
+                            self.safe_mode_checks = 0
 
-            total_time = time.time() - start
-            self._logger.debug("OctoPrint health check took {}".format(total_time))
-            if self.run:
-                time.sleep(5 - total_time)
+                    else:
+                        self._logger.debug("OctoPrint is not in safe mode")
+
+                    self.safe_mode_checks += 1
+
+                total_time = time.time() - start
+                self._logger.debug("OctoPrint health check took {}".format(total_time))
+                if self.run:
+                    time.sleep(5 - total_time)
+            except Exception as e:
+                self._logger.exception(e)
+                time.sleep(60)
 
     def check_octoprint(self):
         """
