@@ -13,7 +13,7 @@ plugin_package = "octoprint_simplyprint"
 plugin_name = "SimplyPrint"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
-plugin_version = "1.6.6"
+plugin_version = "3.0.0"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
@@ -32,7 +32,7 @@ plugin_url = "https://simplyprint.io/"
 plugin_license = "AGPLv3"
 
 # Any additional requirements besides OctoPrint should be listed here
-plugin_requires = ["pyyaml", "requests", "SimplyPrintRPiSoftware>=2.4.4"]
+plugin_requires = ["pyyaml", "requests", "python-crontab"]
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point

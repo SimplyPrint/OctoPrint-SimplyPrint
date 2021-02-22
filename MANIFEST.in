@@ -1,0 +1,1 @@
+include octoprint_simplyprint/comm/get_ip.sh
