@@ -978,8 +978,7 @@ class SimplyPrintComm:
                         "sp_installed": plugin.name in sp_plugins or plugin.key == "simplyprint",
                         "pip_name": self.plugin._plugin_manager.get_plugin_info(plugin.key).origin.package_name
                     })
-
-            url_parameters += "&octoprint_plugins" + url_quote(installed_plugins)
+            url_parameters += "&octoprint_plugins" + url_quote(json.dumps(installed_plugins))
 
         if url_parameters != "":
             self.ping(url_parameters)
