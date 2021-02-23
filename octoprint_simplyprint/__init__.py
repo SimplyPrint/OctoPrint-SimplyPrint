@@ -122,10 +122,8 @@ class SimplyPrint(
             "request_url": "",
             "rpi_id": "",
             "is_set_up": False,
-            "sp_local_installed": False,
             "printer_name": "",
             "printer_id": "",
-            "simplyprint_version": "",  # TODO remove?
             "temp_short_setup_id": "",
             "from_image": False,
             "sp_installed_plugins": "",
@@ -144,6 +142,9 @@ class SimplyPrint(
                 "last_user_settings_sync": "0000-00-00 00:00:00",
                 "gcode_scripts_backed_up": False,
             }
+    def get_template_vars(self):
+        return {
+            "version": self._plugin_version
         }
 
     @staticmethod
