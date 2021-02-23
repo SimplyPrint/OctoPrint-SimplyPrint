@@ -44,7 +44,7 @@ class SimplyPrintBackground:
         self.safe_mode_checks = 0
 
     def mainloop(self):
-        # TODO find out the port somehow... that's going to annoy me
+        # TODO find/recieve out the port somehow... that's going to annoy me, since it is IPC
         self.octoprint = OctoPrintClient("http://127.0.0.1", self._octoprint_settings.get(["api", "key"]))
 
         while self.run:
@@ -55,6 +55,8 @@ class SimplyPrintBackground:
                 if not check_result:
                     # :(
                     self._logger.warning("OctoPrint is not OK... Trying to restart it now")
+                    self.ping_simplyprint("&octoprint_status=Shutdown")
+                    self.restart_octoprint()
                 else:
                     self._logger.debug("OctoPrint seems OK")
 
@@ -86,6 +88,9 @@ class SimplyPrintBackground:
         try:
             version = self.octoprint.version()
         except OctoPrintApiError:
+            return False
+        except Exception:
+            # Some other random error, possibly connection refused if proxy dies
             return False
 
         if "octoprint" in version["text"].lower():
