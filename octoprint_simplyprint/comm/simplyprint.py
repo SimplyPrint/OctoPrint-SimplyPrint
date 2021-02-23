@@ -408,12 +408,15 @@ class SimplyPrintComm:
                 self._run_system_command("shutdown", command)
 
         if "start_octoprint" in demand_list:
-            # TODO useless, as we are already in OctoPrint, todo in SPlocal
+            # Useless, as we are already in OctoPrint
             pass
 
         if "shutdown_octoprint" in demand_list:
-            # TODO not an option in OctoPrint, want to avoid hardcoded paths :/
-            pass
+            self._set_display("Shutting down OctoPrint", True)
+            command = self._settings.global_get(["server", "commands", "serverRestartCommand"])
+            # OctoPrint does not have fields for server shutdown, if the restart command is there adapt that
+            if command == "sudo service octoprint restart":
+                self._run_system_command("server shutdown", "sudo service octoprint stop")
 
         if "restart_octoprint" in demand_list:
             self._set_display("Restarting OctoPrint", True)
