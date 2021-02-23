@@ -260,13 +260,20 @@ class SimplyPrintComm:
                 if self.first:
                     extra += "&first"
                     self.first = False
+
                 if self._settings.get_boolean(["has_power_controller"]):
                     # TODO simplypowercontroller handling - plugin helper?
                     pass
 
                 if self._settings.get_boolean(["has_filament_sensor"]):
-                    # TODO simplyfilamentsensor handling - plugin helper?
-                    pass
+                    helpers = self.plugin._plugin_manager.get_helpers("simplyfilamentsensor", "get_status")
+                    if helpers and helpers["get_status"]:
+                        status = helpers["get_status"]()
+                        if status["has_filament"]:
+                            state = "loaded"
+                        else:
+                            state = "runout"
+                        extra += "&filament_sensor=" + state
 
                 if not self.has_checked_webcam_options:
                     octoprint_webcam = {
