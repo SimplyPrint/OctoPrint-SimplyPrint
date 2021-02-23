@@ -77,6 +77,9 @@ class SimplyPrint(
 
     simply_print = None
 
+    host = "127.0.0.1"
+    port = "5000"
+
     def initialize(self):
         # Called once the plugin has been loaded by OctoPrint, all injections complete
         self.simply_print = SimplyPrintComm(self)
@@ -85,6 +88,10 @@ class SimplyPrint(
         # Run startup thread and run the main loop in the background
         self.simply_print.start_startup()
         self.simply_print.start_main_loop()
+
+        self.host = host
+        # Remember that this port is internal to OctoPrint, a proxy may exist.
+        self.port = port
 
         ip = host
 

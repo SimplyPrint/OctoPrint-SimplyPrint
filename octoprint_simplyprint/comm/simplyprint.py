@@ -11,6 +11,7 @@ import time
 import sys
 import uuid
 import tempfile
+import datetime
 
 import sarge
 import psutil
@@ -63,6 +64,7 @@ class SimplyPrintComm:
         self.times_per_minute = 45
         self.main_loop_thread = None
         self.livestream_thread = None
+        self.next_check_update = datetime.date.today().day + 1
 
         # This uses OctoPrint's built in pip caller, exactly the same as PGMR/SWU use it
         self._pip_caller = create_pip_caller(
@@ -82,16 +84,21 @@ class SimplyPrintComm:
             start_time = time.time()
             self._logger.debug("Request... {} times per minute".format(self.times_per_minute))
 
+            # Check for update will only run each day
+            self.check_for_updates()
+
+            # SimplyPrint ping & do commands
             try:
                 self.request()
             except Exception as e:
                 self._logger.exception(e)
 
+            # Performance monitoring
             request_time = time.time() - start_time
             self._logger.debug("request took {}".format(request_time))
 
             if request_time >= 60 / self.times_per_minute:
-                # Took longer than we should have, proceed straight away to next req
+                # We took longer than we should have, proceed straight away to next req
                 continue
             else:
                 # Sleep for the difference and then go again :)
@@ -105,6 +112,12 @@ class SimplyPrintComm:
 
     def start_startup(self):
         self.startup.run_startup()
+
+    def update_check(self):
+        # Only check for updates once per day
+        if datetime.date.today() == self.next_check_update:
+            self.check_for_updates()
+            self.next_check_update = datetime.date.today().day + 1
 
     def _simply_get(self, url):
         url = url.replace(" ", "%20")
@@ -989,6 +1002,44 @@ class SimplyPrintComm:
 
         if url_parameters != "":
             self.ping(url_parameters)
+
+    def check_for_updates(self):
+        port = self.plugin.port
+        api_key = self._settings.global_get(["api", "key"])
+        try:
+            response = requests.get("http://127.0.0.1:{}/plugin/softwareupdate/check".format(port), headers={"X-Api-Key": api_key})
+            if not 200 <= response.status_code <= 210:
+                # Response code no good
+                self._logger.warning("Couldn't check for an OctoPrint update, API returned invalid response")
+                return
+            response_json = response.json()
+        except requests.exceptions.RequestException:
+            self._logger.error("Problem requesting URL, maybe OctoPrint is offline...?")
+            return
+        except ValueError:
+            self._logger.error("Problem converting response to JSON, can't check for updates")
+            return
+        except Exception as e:
+            self._logger.error("Unexpected error checking for updates")
+            self._logger.exception(e)
+            return
+
+        available_updates = []
+        if "information" in response_json:
+            for plugin in response_json["information"]:
+                if "updateAvailable" in response_json["information"][plugin] and response_json["information"][plugin]["updateAvailable"]:
+                    release_notes = response_json["information"][plugin]["releaseNotes"]
+                    new_version = response_json["information"][plugin]["information"]["remote"]["name"]
+
+                    available_updates.append({
+                        "plugin": plugin,
+                        "version": new_version,
+                        "release_notes": release_notes
+                    })
+
+        if available_updates:
+            self._logger.info("Updates available")
+            self.ping("&updates_available=" + url_quote(json.dumps(available_updates)))
 
     # Helpers =======================================================
 
