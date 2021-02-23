@@ -76,7 +76,7 @@ class SimplyPrintBackground:
                 total_time = time.time() - start
                 self._logger.debug("OctoPrint health check took {}".format(total_time))
                 if self.run:
-                    time.sleep(5 - total_time)
+                    time.sleep(60 - total_time)
             except Exception as e:
                 self._logger.exception(e)
                 time.sleep(60)
