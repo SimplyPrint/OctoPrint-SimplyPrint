@@ -85,7 +85,7 @@ class SimplyPrintComm:
             self._logger.debug("Request... {} times per minute".format(self.times_per_minute))
 
             # Check for update will only run each day
-            self.check_for_updates()
+            self.update_check()
 
             # SimplyPrint ping & do commands
             try:
