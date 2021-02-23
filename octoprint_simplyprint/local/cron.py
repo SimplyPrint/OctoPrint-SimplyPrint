@@ -56,7 +56,7 @@ class CronManager:
         Validates that an entry with the comment exists in the crontab
         """
         for job in self.cron:
-            job_comment = job.comment().lower()
+            job_comment = job.comment.lower()
             if "simplyprint" in job_comment and job_comment is comment:
                 return True
         return False
