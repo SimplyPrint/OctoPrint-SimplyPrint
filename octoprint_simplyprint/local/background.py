@@ -156,7 +156,7 @@ class SimplyPrintBackground:
         url = url.replace(" ", "%20")
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=5)
         except requests.exceptions.RequestException as e:
             self._logger.error("Error sending get request to SimplyPrint")
             self._logger.exception(e)

@@ -50,12 +50,12 @@ def post_image(picture_id=None):
             try:
                 download_image(file, url)
             except WebcamError:
-                requests.get(upl_url + "&err_msg=Download%20of%20screenshot%20not%20successful")
+                requests.get(upl_url + "&err_msg=Download%20of%20screenshot%20not%20successful", timeout=5)
                 return
 
         with io.open(temp_path, "rb") as file:
             try:
-                response = requests.post(upl_url, files={"the_file": file})
+                response = requests.post(upl_url, files={"the_file": file}, timeout=10)
             except requests.exceptions.RequestException as e:
                 log.error("Failed to post image to SP")
                 log.exception(e)

@@ -155,7 +155,7 @@ class SimplyPrintComm:
         self._logger.debug("Sending GET to {}".format(url))
 
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=5)
         except requests.exceptions.RequestException as e:
             self._logger.error("Error sending get request to SimplyPrint")
             self._logger.exception(e)
@@ -1054,7 +1054,7 @@ class SimplyPrintComm:
         port = self.plugin.port
         api_key = self._settings.global_get(["api", "key"])
         try:
-            response = requests.get("http://127.0.0.1:{}/plugin/softwareupdate/check".format(port), headers={"X-Api-Key": api_key})
+            response = requests.get("http://127.0.0.1:{}/plugin/softwareupdate/check".format(port), headers={"X-Api-Key": api_key}, timeout=5)
             if not 200 <= response.status_code <= 210:
                 # Response code no good
                 self._logger.warning("Couldn't check for an OctoPrint update, API returned invalid response")

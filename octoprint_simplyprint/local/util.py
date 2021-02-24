@@ -51,13 +51,13 @@ class OctoPrintClient:
         Http GET to OctoPrint at the path specified
         """
         url = urlparse.urljoin(self.url, path)
-        response = self.session.get(url, params=params)
+        response = self.session.get(url, params=params, timeout=5)
         self._check_response(response)
         return response.json()
 
     def _post(self, path, data=None, json=None, ret=True):
         url = urlparse.urljoin(self.url, path)
-        response = self.session.post(url, data=data, json=json)
+        response = self.session.post(url, data=data, json=json, timeout=5)
         self._check_response(response)
 
         if ret:
