@@ -293,11 +293,11 @@ class SimplyPrintComm:
 
                 if not self.has_checked_webcam_options:
                     octoprint_webcam = {
-                        "filpH": self._settings.global_get(["webcam", "filpH"]),
-                        "filpV": self._settings.global_get(["webcam", "filpV"]),
+                        "flipH": self._settings.global_get(["webcam", "flipH"]),
+                        "flipV": self._settings.global_get(["webcam", "flipV"]),
                         "rotate90": self._settings.global_get(["webcam", "rotate90"]),
                     }
-                    simplyprint_webcam = self._settings.get(["webcam"])
+                    simplyprint_webcam = self._settings.get(["webcam"], merged=True)
                     diff = octoprint.util.dict_minimal_mergediff(octoprint_webcam, simplyprint_webcam)
                     if diff:
                         # Webcam settings in OctoPrint are different to SimplyPrint
@@ -740,11 +740,17 @@ class SimplyPrintComm:
         }
         if "flipH" in cam_settings and cam_settings["flipH"]:
             new["flipH"] = True
+            self._settings.global_set(["webcam", "flipH"], True)
+
         if "flipV" in cam_settings and cam_settings["flipV"]:
             new["flipV"] = True
+            self._settings.global_set(["webcam", "flipV"], True)
+
         if "rotate90" in cam_settings and cam_settings["rotate90"]:
+            self._settings.global_set(["webcam", "rotate90"], True)
             new["rotate90"] = True
-        self._settings.set(["webcam"], new)
+
+        self._settings.set(["webcam"], new)  # Set in SP
         self._settings.save()
 
     def demand_plugin_action(self, demand_list):
