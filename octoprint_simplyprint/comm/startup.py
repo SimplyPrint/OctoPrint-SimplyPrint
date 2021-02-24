@@ -34,7 +34,6 @@ class SimplyPrintStartup:
         pi_model = self.get_pi_model()
         ssid = self.get_wifi()
         hostname = self.get_hostname()
-        has_camera = "0"
         octoprint_version, octoprint_api_version = self.get_octoprint_version()
         python_version = self.get_python_version_str()
 
@@ -43,7 +42,6 @@ class SimplyPrintStartup:
               "&pi_model={pi_model}" \
               "&wifi_ssid={ssid}" \
               "&hostname={hostname}" \
-              "&has_camera={has_camera}" \
               "&octoprint_version={octoprint_version}" \
               "&octoprint_api_version={octoprint_api_version}" \
               "&python_version={python_version}".format(**locals())
