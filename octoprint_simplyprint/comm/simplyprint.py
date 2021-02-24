@@ -283,13 +283,16 @@ class SimplyPrintComm:
 
                 if self._settings.get_boolean(["has_filament_sensor"]):
                     helpers = self.plugin._plugin_manager.get_helpers("simplyfilamentsensor", "get_status")
-                    if helpers and helpers["get_status"]:
-                        status = helpers["get_status"]()
-                        if status["has_filament"]:
-                            state = "loaded"
-                        else:
-                            state = "runout"
-                        extra += "&filament_sensor=" + state
+                    try:
+                        if helpers and helpers["get_status"]:
+                            status = helpers["get_status"]()
+                            if status["has_filament"]:
+                                state = "loaded"
+                            else:
+                                state = "runout"
+                            extra += "&filament_sensor=" + state
+                    except Exception:
+                        self._logger.warning("Couldn't get filament sensor status")
 
                 if not self.has_checked_webcam_options:
                     octoprint_webcam = {
