@@ -53,10 +53,14 @@ class SimplyPrintComm:
         # Submodules - these depend on SimplyPrint sometimes, eg. self.ping()
         self.startup = startup.SimplyPrintStartup(self)
 
-        # Various state-things - TODO should these things be reset once a minute? It seems to work so far...
+        # Various state-things
         self.request_settings_next_time = False
         self.has_checked_webcam_options = False
         self.has_checked_firmware_info = False
+        self.has_checked_power_controller = False
+        self.has_checked_filament_sensor = False
+        self.state_timer = None
+
         self.last_connection_attempt = time.time()
         self.first = True
         self._files_analyzed = []
@@ -79,6 +83,11 @@ class SimplyPrintComm:
         self.run_loop = True
 
     def main_loop(self):
+        # Start a repeated timer to reset the state every minute
+        if not self.state_timer or (self.state_timer and not self.state_timer.is_alive()):
+            self.state_timer = octoprint.util.RepeatedTimer(60, self.reset_minute_checks)
+            self.state_timer.start()
+
         self._logger.info("Starting webrequest loop")
         while self.run_loop:
             start_time = time.time()
@@ -112,6 +121,15 @@ class SimplyPrintComm:
 
     def start_startup(self):
         self.startup.run_startup()
+
+    def reset_minute_checks(self):
+        """
+        This emulates previous behaviour where the script was run once per minute
+        """
+        self.has_checked_webcam_options = False
+        self.has_checked_firmware_info = False
+        self.has_checked_power_controller = False
+        self.has_checked_filament_sensor = False
 
     def update_check(self):
         # Only check for updates once per day
@@ -272,7 +290,7 @@ class SimplyPrintComm:
                     extra += "&first"
                     self.first = False
 
-                if self._settings.get_boolean(["has_power_controller"]):
+                if self._settings.get_boolean(["has_power_controller"]) and not self.has_checked_power_controller:
                     helpers = self.plugin._plugin_manager.get_helpers("simplypowercontroller")
                     if helpers and helpers["get_status"]:
                         status = helpers["get_status"]()
@@ -281,7 +299,9 @@ class SimplyPrintComm:
                         else:
                             extra += "&power_controller=off"
 
-                if self._settings.get_boolean(["has_filament_sensor"]):
+                    self.has_checked_power_controller = True
+
+                if self._settings.get_boolean(["has_filament_sensor"]) and not self.has_checked_filament_sensor:
                     helpers = self.plugin._plugin_manager.get_helpers("simplyfilamentsensor", "get_status")
                     try:
                         if helpers and helpers["get_status"]:
@@ -293,6 +313,8 @@ class SimplyPrintComm:
                             extra += "&filament_sensor=" + state
                     except Exception:
                         self._logger.warning("Couldn't get filament sensor status")
+                    else:
+                        self.has_checked_filament_sensor = True
 
                 if not self.has_checked_webcam_options:
                     octoprint_webcam = {
@@ -305,6 +327,8 @@ class SimplyPrintComm:
                     if diff:
                         # Webcam settings in OctoPrint are different to SimplyPrint
                         extra += "&webcam_options" + url_quote(json.dumps(octoprint_webcam))
+
+                    self.has_checked_webcam_options = True
 
             try:
                 response = self.ping("&recv_commands" + extra)
@@ -677,8 +701,8 @@ class SimplyPrintComm:
 
         if "missing_firmware_info" in demand_list:
             if not self.has_checked_firmware_info:
-                self.has_checked_firmware_info = True
                 self.printer.disconnect()
+                self.has_checked_firmware_info = True
             else:
                 self.printer.connect()
         self._set_display(response_json["printer_set_up_short_id"])
