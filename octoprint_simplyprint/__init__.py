@@ -142,6 +142,8 @@ class SimplyPrint(
                 "last_user_settings_sync": "0000-00-00 00:00:00",
                 "gcode_scripts_backed_up": False,
             }
+        }
+    
     def get_template_vars(self):
         return {
             "version": self._plugin_version
