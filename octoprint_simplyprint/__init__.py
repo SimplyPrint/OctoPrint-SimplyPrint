@@ -143,7 +143,7 @@ class SimplyPrint(
                 "gcode_scripts_backed_up": False,
             }
         }
-    
+
     def get_template_vars(self):
         return {
             "version": self._plugin_version

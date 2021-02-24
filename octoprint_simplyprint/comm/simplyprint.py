@@ -273,8 +273,13 @@ class SimplyPrintComm:
                     self.first = False
 
                 if self._settings.get_boolean(["has_power_controller"]):
-                    # TODO simplypowercontroller handling - plugin helper?
-                    pass
+                    helpers = self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+                    if helpers and helpers["get_status"]:
+                        status = helpers["get_status"]()
+                        if "isPSUOn" in status and status["isPSUOn"]:
+                            extra += "&power_controller=on"
+                        else:
+                            extra += "&power_controller=off"
 
                 if self._settings.get_boolean(["has_filament_sensor"]):
                     helpers = self.plugin._plugin_manager.get_helpers("simplyfilamentsensor", "get_status")
@@ -447,11 +452,14 @@ class SimplyPrintComm:
             pass
 
         if any_demand(demand_list, ["psu_on", "psu_keepalive"]):
-            # TODO turn power controller on
-            pass
+            helpers = self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            if helpers and helpers["psu_on"]:
+                helpers["psu_on"]()
 
         if "psu_off" in demand_list:
-            # TODO turn power controller off
+            helpers = self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            if helpers and helpers["psu_off"]:
+                helpers["psu_off"]()
             pass
 
         if "webcam_settings_updated" in demand_list:
