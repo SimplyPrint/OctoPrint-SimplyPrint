@@ -126,7 +126,7 @@ class SimplyPrint(
             "printer_id": "",
             "temp_short_setup_id": "",
             "from_image": False,
-            "sp_installed_plugins": "",
+            "sp_installed_plugins": [],
             "display_enabled": True,
             "display_branding": True,
             "display_show_status": True,

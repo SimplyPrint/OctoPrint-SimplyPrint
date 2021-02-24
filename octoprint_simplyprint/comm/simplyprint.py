@@ -849,12 +849,12 @@ class SimplyPrintComm:
 
     def uninstall_plugin(self, action):
         self._logger.info("Uninstalling plugin {}".format(action["name"]))
-        try:
-            self._settings.set(["sp_installed_plugins"],
-                               self._settings.get(["sp_installed_plugins"]).remove(action["name"]))
-        except ValueError:
-            # It didn't exist...?
-            self._logger.error("Couldn't remove plugin from the list")
+        simplyprint_plugins = self._settings.get(["sp_installed_plugins"])
+        if action["name"] in simplyprint_plugins:
+            simplyprint_plugins.remove(action["name"])
+            self._settings.set(["sp_installed_plugins"], simplyprint_plugins)
+            self._settings.save()
+
         pip_args = [
             "uninstall",
             "--yes",
