@@ -604,16 +604,21 @@ class SimplyPrintComm:
         if "cancel" in script_list and "pause" in script_list and "resume" in script_list:
             self._settings.settings.saveScript(
                 "gcode", "afterPrintCancelled",
-                "\n".join(script_list["cancel"]).replace("\r\n", "\n").replace("\r", "\n")
+                octoprint.util.to_unicode("\n".join(script_list["cancel"]).replace("\r\n", "\n").replace("\r", "\n"))
             )
             self._settings.settings.saveScript(
-                "gcode", "afterPrintPaused", "\n".join(script_list["pause"]).replace("\r\n", "\n").replace("\r", "\n")
+                "gcode", "afterPrintPaused",
+                octoprint.util.to_unicode("\n".join(script_list["pause"]).replace("\r\n", "\n").replace("\r", "\n"))
             )
             self._settings.settings.saveScript(
                 "gcode", "beforePrintResumed",
-                "\n".join(script_list["resume"]).replace("\r\n", "\n").replace("\r", "\n")
+                octoprint.util.to_unicode("\n".join(script_list["resume"]).replace("\r\n", "\n").replace("\r", "\n"))
             )
             self._logger.info("Pulled GCODE scripts from SP server")
+            # Scripts don't go to config.yaml, so it does not show as modified - force it
+            self._settings.save(force=True, trigger_event=True)
+            
+            self.ping("&gcode_scripts_fetched")
 
     def _run_system_command(self, name, command):
         self._logger.info("Performing command for {}: {}".format(name, command))
