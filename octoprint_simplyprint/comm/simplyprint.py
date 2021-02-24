@@ -523,6 +523,7 @@ class SimplyPrintComm:
                     # Only re-connect if we aren't already connected
                     self._logger.info("Connecting printer")
                     self.printer.connect()
+                    self.last_connection_attempt = time.time()
 
         if "disconnect_printer" in demand_list:
             self._logger.info("Disconnecting printer")
