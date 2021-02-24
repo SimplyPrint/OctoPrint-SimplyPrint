@@ -1098,7 +1098,7 @@ class SimplyPrintComm:
         return self._pip_caller.execute(*args)
 
     def _set_display(self, string, short_branding=False):
-        if not self._settings.get_boolean(["is_set_up"]) or self._settings.get_boolean(["display_enabled"]):
+        if not self._settings.get_boolean(["is_set_up"]) or not self._settings.get_boolean(["display_enabled"]):
             # Don't set display if not set up or not enabled, bail intstead
             return
 
