@@ -46,9 +46,12 @@ class SimplyPrintComm:
     def __init__(self, plugin):
         self.plugin = plugin
         self._logger = logging.getLogger("octoprint.plugins.SimplyPrint.comm")
-        self._logger.setLevel(logging.DEBUG)
+
         self._settings = plugin._settings
         self.printer = plugin._printer
+
+        if self._settings.get(["debug_logging"]):
+            self._logger.setLevel(logging.DEBUG)
 
         # Submodules - these depend on SimplyPrint sometimes, eg. self.ping()
         self.startup = startup.SimplyPrintStartup(self)
@@ -381,9 +384,6 @@ class SimplyPrintComm:
             self.process_demands(demand_list, response_json)
 
     def process_demands(self, demand_list, response_json):
-        # TODO check the falsey value in has_demand(), in our equivalent - might be a bug? Not sure yet, it seems to
-        # TODO work just fine in all tests so far, this is just carried over from SP RPI SW
-
         if any_demand(demand_list, ["identify_printer", "do_gcode", "gcode_code"]):
             self.demand_gcode(demand_list)
 

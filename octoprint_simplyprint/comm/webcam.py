@@ -22,7 +22,8 @@ from octoprint.settings import settings
 from .constants import WEBCAM_SNAPSHOT_URL
 
 log = logging.getLogger("octoprint.plugins.SimplyPrint.comm.webcam")
-log.setLevel(logging.DEBUG)
+if settings().get(["plugins", "SimplyPrint", "debug_logging"]):
+    log.setLevel(logging.DEBUG)
 
 
 def post_image(picture_id=None):
@@ -81,7 +82,7 @@ def download_image(file_object, url, timeout=3):
         log.exception(e)
         raise WebcamError("Failed to request webcam URL {}".format(url))
 
-    # TODO the free space check before dumping to disk? Was previously commented in SP-RPI-SW
+    # The free space check before dumping to disk was previously commented in SP-RPI-SW, it is not implemented
 
     if response.status_code == 200:
         try:
