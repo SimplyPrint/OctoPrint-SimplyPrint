@@ -143,6 +143,7 @@ class SimplyPrint(
                 "gcode_scripts_backed_up": False,
             },
             "debug_logging": False,
+            "public_port": "5000"
         }
 
     def get_template_vars(self):
@@ -156,7 +157,7 @@ class SimplyPrint(
             js=["js/SimplyPrint.js"],
             css=["css/SimplyPrint.css"],
             font=["font/lcd.ttf"],
-            logo=["img/sp_logo.png"],  # This is not how the webassets work :)
+            logo=["img/sp_logo.png"],
             logo_lg=["img/sp_logo_large.png"],
             logo_white_sm=["img/sp_white_sm.png"]
         )
