@@ -133,6 +133,7 @@ class SimplyPrintComm:
         self.has_checked_firmware_info = False
         self.has_checked_power_controller = False
         self.has_checked_filament_sensor = False
+        self.first = True
 
     def update_check(self):
         # Only check for updates once per day
