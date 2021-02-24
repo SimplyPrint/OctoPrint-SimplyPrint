@@ -249,8 +249,6 @@ class SimplyPrintComm:
             "progress": current_data["progress"],
             "state": current_data["state"]["text"],
         }
-        if current_data["state"]["error"]:
-            result["error"] = current_data["state"]["error"]
 
         return result
 
