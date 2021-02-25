@@ -62,6 +62,7 @@ class SimplyPrintComm:
         self.has_checked_firmware_info = False
         self.has_checked_power_controller = False
         self.has_checked_filament_sensor = False
+        self.previous_printer_text = ""
         self.state_timer = None
 
         self.last_connection_attempt = time.time()
@@ -416,7 +417,7 @@ class SimplyPrintComm:
 
         if self.printer.is_printing():
             if self._settings.get_int(["display_while_printing_type"]) != 2:
-                self._set_display("Printing {}%".format(int(self.get_print_job()["progress"]["completion"])))
+                self._set_display("Printing {}%".format(int(self.get_print_job()["progress"]["completion"])), True)
             else:
                 self._set_display("Printing...", True)
 
@@ -1101,7 +1102,10 @@ class SimplyPrintComm:
 
     def _set_display(self, string, short_branding=False):
         if not self._settings.get_boolean(["is_set_up"]) or not self._settings.get_boolean(["display_enabled"]):
-            # Don't set display if not set up or not enabled, bail intstead
+            # Don't set display if not set up or not enabled, bail instead
+            return
+
+        if string != self.previous_printer_text:
             return
 
         if not isinstance(string, str):
@@ -1112,6 +1116,8 @@ class SimplyPrintComm:
                 self._logger.error("Could not stringify {} to set printer's display".format(string))
                 self._logger.exception(e)
                 return
+
+        self.previous_printer_text = string
 
         prefix = ""
         if self._settings.get_boolean(["display_branding"]):
