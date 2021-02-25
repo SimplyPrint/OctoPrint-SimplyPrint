@@ -86,11 +86,11 @@ except ImportError:
     sys.exit(-1)
 
 if not is_octoprint_compatible(">=1.3.12"):
-    print("\n\n------------------------------------------------------\n\n")
+    print("\n\n----------------------------------------\n\n")
     print("!! Unsupported OctoPrint version !!\n")
     print("SimplyPrint requires at least OctoPrint 1.3.12 to work properly, please update your OctoPrint install\n")
     print("You can find out more about that here: http://simplyprint.io/redir?r=unsupported-octoprint")
-    print("\n\n-------------------------------------------------------\n\n")
+    print("\n")
     import sys
     sys.exit(-1)
 
