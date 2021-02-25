@@ -71,6 +71,27 @@ except:
 
     sys.exit(-1)
 
+
+###########################################
+# SIMPLYPRINT OCTOPRINT VERSION CHECK     #
+# SimplyPrint is only working with 1.3.12 #
+# Older versions need to update           #
+###########################################
+try:
+    from octoprint.util.version import is_octoprint_compatible
+except ImportError:
+    print("Could not find OctoPrint, are you sure you are installing under the same python installation"
+          "that OctoPrint is installed under?")
+    import sys
+    sys.exit(-1)
+
+if not is_octoprint_compatible(">=1.3.12"):
+    print("SimplyPrint requires at least OctoPrint 1.3.12 to work properly, please update your OctoPrint install")
+    print("You can find out more about that here: http://simplyprint.io/redir?r=unsupported-octoprint")
+    import sys
+    sys.exit(-1)
+
+
 setup_parameters = octoprint_setuptools.create_plugin_setup_parameters(
     identifier=plugin_identifier,
     package=plugin_package,
