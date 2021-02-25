@@ -165,7 +165,7 @@ class SimplyPrint(
                 "gcode_scripts_backed_up": False,
             },
             "debug_logging": False,
-            "public_port": "5000"
+            "public_port": "80"
         }
 
     def get_template_vars(self):
@@ -208,29 +208,8 @@ class SimplyPrint(
 
     # Send public port to outside system
     def send_port_ip(self, port=None, ip=None):
-        return
-        # TODO Send Port to background - should be easyish but I'm not sure how, since it is IPC - might need a file :(
-        self._logger.info("Sending port to SimplyPrintLocal")
-        try:
-            from simplyprint_raspberry import port_ip_comm
-
-        except ImportError:
-            self._logger.error("SimplyPrintRPiSoftware not installed - plugin must be reinstalled")
-            self._plugin_manager.send_plugin_message("SimplyPrint",
-                                                     {"success": False, "message": "sp-rpi_not_available"})
-            return
-        try:
-            if port is not None:
-                port_ip_comm.save_port(port)
-
-            if ip is not None:
-                port_ip_comm.save_port(ip)
-
-        except Exception as e:
-            self._logger.error(repr(e))
-            self._logger.error("Failed to setup SimplyPrintRPiSoftware")
-            # self._plugin_manager.send_plugin_message("SimplyPrint", {"success": False, "message": "spi-rpi_error"})
-            return
+        self._settings.set(["public_port"], port)
+        self._settings.save()
 
     def on_api_get(self, request):
         import flask

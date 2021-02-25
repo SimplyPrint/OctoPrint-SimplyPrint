@@ -20,7 +20,7 @@ from __future__ import absolute_import, division, unicode_literals
 
 import logging
 import socket
-import sys  # Used to get python version, ignore linter warnings
+import sys
 import threading
 import io
 import os
@@ -57,14 +57,21 @@ class SimplyPrintStartup:
         octoprint_version, octoprint_api_version = self.get_octoprint_version()
         python_version = self.get_python_version_str()
 
+        public_port = self.get_public_port()
+        if public_port and public_port != 80:
+            ip = "{}:{}".format(ip, public_port)
+
         url = "&startup=true" \
-              "&device_ip={ip}" \
-              "&pi_model={pi_model}" \
-              "&wifi_ssid={ssid}" \
-              "&hostname={hostname}" \
-              "&octoprint_version={octoprint_version}" \
-              "&octoprint_api_version={octoprint_api_version}" \
-              "&python_version={python_version}".format(**locals())
+              "&device_ip={}" \
+              "&pi_model={}" \
+              "&wifi_ssid={}" \
+              "&hostname={}" \
+              "&octoprint_version={}" \
+              "&octoprint_api_version={}" \
+              "&python_version={}".format(
+            url_quote(ip), url_quote(pi_model), url_quote(ssid), url_quote(hostname), url_quote(octoprint_version),
+            url_quote(octoprint_api_version), url_quote(python_version)
+        )
 
         request = self.simply_print.ping(url)
 
@@ -147,4 +154,6 @@ class SimplyPrintStartup:
         from octoprint import __version__
         return __version__, VERSION
 
-
+    def get_public_port(self):
+        # noinspection PyProtectedMember
+        return self.simply_print._settings.get_int(["public_port"])
