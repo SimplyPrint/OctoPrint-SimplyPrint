@@ -1,3 +1,23 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, unicode_literals
+#
+# SimplyPrint
+# Copyright (C) 2020-2021  SimplyPrint ApS
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import logging
 import threading
 import time
@@ -22,8 +42,6 @@ from octoprint.settings import settings
 from .constants import WEBCAM_SNAPSHOT_URL
 
 log = logging.getLogger("octoprint.plugins.SimplyPrint.comm.webcam")
-if settings().get(["plugins", "SimplyPrint", "debug_logging"]):
-    log.setLevel(logging.DEBUG)
 
 
 def post_image(picture_id=None):
@@ -68,6 +86,8 @@ def post_image(picture_id=None):
 
 
 def download_image(file_object, url, timeout=3):
+    if settings().get(["plugins", "SimplyPrint", "debug_logging"]):
+        log.setLevel(logging.DEBUG)
     """
     Download an image from the webcam and write it to the file object
     :param file_object: File-like object, opened in 'wb' mode
@@ -96,6 +116,9 @@ def download_image(file_object, url, timeout=3):
 
 
 def start_livestream(queue, old_thread=None):
+    if settings().get(["plugins", "SimplyPrint", "debug_logging"]):
+        log.setLevel(logging.DEBUG)
+
     if old_thread is not None and old_thread.is_alive():
         queue.put("KILL")
         old_thread.join()
@@ -126,6 +149,12 @@ def livestream_loop(queue):
             log.error("Error sending image for livestream")
             fails += 1
             # Sleep to prevent spam/overload
+            time.sleep(0.8)
+            continue
+
+        if request is None:
+            # Error, no response was returned, try again next time
+            fails += 1
             time.sleep(0.8)
             continue
 

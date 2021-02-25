@@ -1,11 +1,31 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, unicode_literals
+#
+# SimplyPrint
+# Copyright (C) 2020-2021  SimplyPrint ApS
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import logging
 import sys
+import subprocess
 
 from crontab import CronTab
 
-
-background_comment = "[SimplyPrint] Background healthcheck (V1)"
-background_command = sys.executable + "-m octoprint_simplyrint run_healthcheck"
+background_comment = "[SimplyPrint] Background healthcheck (V1.1)"
+background_command = sys.executable + " -m octoprint_simplyprint run_healthcheck"
 
 
 class CronManager:
@@ -15,7 +35,11 @@ class CronManager:
 
         for job in self.cron:
             comment = job.comment.lower()
-            if "simplyprint" in comment and comment is not background_comment.lower():
+            if (
+                ("simplyprint" in comment and comment is not background_comment.lower())
+                # Remove commands with the simplyrint in them, this was a typo in previous versions
+                or ("simplyrint" in job.command and comment is not background_comment.lower())
+            ):
                 self._logger.info("Removing job, {}".format(comment))
                 self.cron.remove(job)
 
@@ -36,7 +60,7 @@ class CronManager:
 
         self._logger.info("Creating cronjob...")
 
-        cron_job = self.cron.new(command=command, user=user)
+        cron_job = self.cron.new(command=command, comment=comment, user=user)
 
         if on_reboot:
             cron_job.every_reboot()
@@ -70,6 +94,9 @@ class CronManager:
 def create_cron_jobs():
     cron = CronManager()
     cron.add(True, background_command, background_comment, True)
+
+    # Start the background process *now*, but don't wait for it (it will run forever...)
+    subprocess.Popen([sys.executable, "-m", "octoprint_simplyprint", "run_healthcheck"])
 
 
 def check_cron_jobs():
