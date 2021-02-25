@@ -178,7 +178,7 @@ class SimplyPrintComm:
             response = requests.get(url, headers=headers, timeout=5)
         except requests.exceptions.RequestException as e:
             self._logger.error("Error sending get request to SimplyPrint")
-            self._logger.exception(e)
+            self._logger.error(repr(e))
             raise
 
         return response
@@ -301,7 +301,7 @@ class SimplyPrintComm:
                 response = self.ping("&request_rpid")
             except Exception as e:
                 self._logger.error("Exception pinging simplyprint for rpid")
-                self._logger.exception(e)
+                self._logger.error(repr(e))
                 return
         else:
             if self.request_settings_next_time:
@@ -357,7 +357,7 @@ class SimplyPrintComm:
                 response = self.ping("&recv_commands" + extra)
             except Exception as e:
                 self._logger.error("Exception pinging simplyprint for extra {}".format(extra))
-                self._logger.exception(e)
+                self._logger.error(repr(e))
                 return
 
         try:
@@ -425,7 +425,8 @@ class SimplyPrintComm:
             self.demand_set_printer_name(response_json)
         except Exception as e:
             self._logger.error("Failed to update printer name and id")
-            self._logger.exception(e)
+            self._logger.error(repr(e))
+            self._logger.error(repr(e))
 
         if "printer_settings" in demand_list:
             self.demand_sync_printer_settings(demand_list)
@@ -668,7 +669,7 @@ class SimplyPrintComm:
             execute()
         except Exception as e:
             self._logger.error("Error running command {}".format(command))
-            self._logger.exception(e)
+            self._logger.erorr(repr(e))
 
     def demand_backup_gcode_scripts(self):
         if not self._settings.get_boolean(["info", "gocde_scripts_backed_up"]):
@@ -840,7 +841,8 @@ class SimplyPrintComm:
                 self._settings.get(["sp_installed_plugins"]).append(action["key"])
             )
         else:
-            self._settings.set(["sp_installed_plugins"], [action["key"]])
+            if action["key"] is not None:
+                self._settings.set(["sp_installed_plugins"], [action["key"]])
 
         pip_name = action["pip_name"]
         install_url = action["install_url"]
@@ -950,7 +952,7 @@ class SimplyPrintComm:
             )
         except Exception as e:
             self._logger.exception("Failed to save printer profile")
-            self._logger.exception(e)
+            self._logger.error(repr(e))
             return
 
         self.ping("&type_settings_fetched")
@@ -1132,7 +1134,6 @@ class SimplyPrintComm:
                 string = str(string)
             except Exception as e:
                 self._logger.error("Could not stringify {} to set printer's display".format(string))
-                self._logger.exception(e)
                 return
 
         self.previous_printer_text = string
@@ -1172,7 +1173,7 @@ class SimplyPrintComm:
             response = requests.get(download_url, allow_redirects=True, timeout=30)
         except Exception as e:
             self._logger.error("Unable to download file from {}".format(download_url))
-            self._logger.exception(e)
+            self._logger.error(repr(e))
             return False
 
         if not response.status_code == 200:
