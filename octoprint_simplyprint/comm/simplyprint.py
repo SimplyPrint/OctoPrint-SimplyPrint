@@ -40,7 +40,7 @@ import octoprint.util
 import octoprint.plugin
 import octoprint.server
 from octoprint.events import Events, eventManager
-from octoprint.util.pip import create_pip_caller
+from octoprint.util.pip import LocalPipCaller
 from octoprint.util.commandline import CommandlineCaller, CommandlineError
 
 from .constants import API_VERSION, UPDATE_URL, SIMPLYPRINT_PLUGIN_INSTALL_URL
@@ -95,9 +95,7 @@ class SimplyPrintComm:
         self.next_check_update = datetime.date.today().day + 1
 
         # This uses OctoPrint's built in pip caller, exactly the same as PGMR/SWU use it
-        self._pip_caller = create_pip_caller(
-            # Use local command if user has configured it
-            command=self._settings.global_get(["server", "commands", "localPipCommand"]),
+        self._pip_caller = LocalPipCaller(
             # Use --user on commands if user has configured it
             force_user=self._settings.global_get_boolean(["plugins", "pluginmanager", "pip_force-user"])
         )
@@ -1059,7 +1057,7 @@ class SimplyPrintComm:
 
             plugins = self.plugin._plugin_manager.plugins
             for key, plugin in plugins.items():
-                if not plugin.bundled and not plugin.hidden and plugin.enabled:
+                if not plugin.bundled and plugin.enabled:  # plugin.hidden removed for 1.3.12 compat
                     installed_plugins.append({
                         "key": plugin.key,
                         "name": plugin.name,
