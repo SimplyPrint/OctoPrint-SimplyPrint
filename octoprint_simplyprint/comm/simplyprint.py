@@ -1127,7 +1127,7 @@ class SimplyPrintComm:
             # Don't set display if not set up or not enabled, bail instead
             return
 
-        if string != self.previous_printer_text:
+        if string == self.previous_printer_text:
             return
 
         if not isinstance(string, str):
