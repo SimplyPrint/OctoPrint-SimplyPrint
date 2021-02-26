@@ -1249,6 +1249,8 @@ class SimplyPrintComm:
         # Remove temporary file (we didn't forget about you!)
         try:
             os.remove(temp_path)
+        except FileNotFoundError:
+            pass
         except Exception:
             self._logger.warning("Failed to remove file at {}".format(temp_path))
 

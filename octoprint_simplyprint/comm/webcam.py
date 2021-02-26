@@ -82,6 +82,13 @@ def post_image(picture_id=None):
             if int(round(response.status_code / 100)) != 2:
                 log.error("Received non-2xx status code from SP, content: {}".format(response.content))
 
+        try:
+            os.remove(temp_path)
+        except FileNotFoundError:
+            pass
+        except Exception:
+            log.warning("Could not remove webcam snapshot tempfile")
+
         return response
 
 
