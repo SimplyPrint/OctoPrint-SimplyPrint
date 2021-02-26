@@ -1127,9 +1127,6 @@ class SimplyPrintComm:
             # Don't set display if not set up or not enabled, bail instead
             return
 
-        if string == self.previous_printer_text:
-            return
-
         if not isinstance(string, str):
             # Attempt to stringify what we have
             try:
@@ -1137,6 +1134,9 @@ class SimplyPrintComm:
             except Exception as e:
                 self._logger.error("Could not stringify {} to set printer's display".format(string))
                 return
+
+        if string == self.previous_printer_text:
+            return
 
         self.previous_printer_text = string
 
