@@ -43,7 +43,7 @@ def run_background_check():
 
 class SimplyPrintBackground:
     def __init__(self):
-        self._logger = logging.getLogger()
+        self._logger = logging.getLogger("octoprint.plugins.SimplyPrint.background")
         self._logger.setLevel(logging.DEBUG)
 
         try:
@@ -58,27 +58,44 @@ class SimplyPrintBackground:
 
         self.octoprint = None
 
+        self.was_octoprint_up = False
+        self.failed_checks = 0
+
         self.main_thread = None
         self.run = True
 
         self.safe_mode_checks = 0
 
     def mainloop(self):
-        # TODO find/recieve out the port somehow... that's going to annoy me, since it is IPC
-        self.octoprint = OctoPrintClient("http://127.0.0.1", self._octoprint_settings.get(["api", "key"]))
+        port = self._octoprint_settings.get(["public_port"])
+        if port is not None and port is not 80:
+            ip = "http://127.0.0.1:{}".format(port)
+        else:
+            ip = "http://127.0.0.1"
+
+        self.octoprint = OctoPrintClient(ip, self._octoprint_settings.get(["api", "key"]))
 
         while self.run:
             try:
                 start = time.time()
 
                 check_result = self.check_octoprint()
-                if not check_result:
-                    # :(
-                    self._logger.warning("OctoPrint is not OK... Trying to restart it now")
+                if not check_result and self.was_octoprint_up:  # Only restart if OctoPrint was previously up
+                    self._logger.warning("OctoPrint is not OK...")
                     self.ping_simplyprint("&octoprint_status=Shutdown")
-                    self.restart_octoprint()
+                    self.failed_checks += 1
+                    if self.failed_checks >= 2:
+                        # Only restart after 2 consecutive failed checks
+                        self._logger.warning("Trying to restart it now")
+                        self.restart_octoprint()
+
+                elif not check_result and not self.was_octoprint_up:
+                    self._logger.warning("OctoPrint hasn't been seen yet, skipping")
+
                 else:
                     self._logger.debug("OctoPrint seems OK")
+                    self.was_octoprint_up = True
+                    self.failed_checks = 0
 
                     safe_mode = self.check_safemode()
                     if not safe_mode:
