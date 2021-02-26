@@ -76,7 +76,7 @@ def post_image(picture_id=None):
                 response = requests.post(upl_url, files={"the_file": file}, timeout=10)
             except requests.exceptions.RequestException as e:
                 log.error("Failed to post image to SP")
-                log.exception(e)
+                log.error(repr(e))
                 return
 
             if int(round(response.status_code / 100)) != 2:
@@ -106,7 +106,7 @@ def download_image(file_object, url, timeout=3):
     try:
         response = requests.get(url, allow_redirects=True, verify=False, timeout=timeout)
     except Exception as e:
-        log.exception(e)
+        log.error(repr(e))
         raise WebcamError("Failed to request webcam URL {}".format(url))
 
     # The free space check before dumping to disk was previously commented in SP-RPI-SW, it is not implemented
