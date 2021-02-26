@@ -122,18 +122,32 @@ class SimplyPrintBackground:
         """
         Checks OctoPrint is alive
         """
-        try:
-            version = self.octoprint.version()
-        except OctoPrintApiError:
-            return False
-        except Exception:
-            # Some other random error, possibly connection refused if proxy dies
-            return False
+        def check_api():
+            try:
+                version = self.octoprint.version()
+            except OctoPrintApiError:
+                return False
+            except Exception:
+                # Some other random error, possibly connection refused if proxy dies
+                return False
 
-        if "octoprint" in version["text"].lower():
-            return True
+            if "octoprint" in version["text"].lower():
+                return True
+            else:
+                return False
+
+        def check_index():
+            # This checks for the intermediary server too, if the API is offline
+            # Means it is probably booting
+            try:
+                return self.octoprint.index()
+            except Exception:
+                return False
+
+        if not check_api():
+            return check_index()
         else:
-            return False
+            return True
 
     def check_safemode(self):
         def check_server():

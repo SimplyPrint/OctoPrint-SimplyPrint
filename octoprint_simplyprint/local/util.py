@@ -98,6 +98,16 @@ class OctoPrintClient:
     def plugin_plugin_manager(self):
         return self._get("/api/plugin/pluginmanager")
 
+    def index(self):
+        try:
+            self._get("/")
+        except ValueError:
+            # Expected result, since it is not a JSON endpoint
+            # Any other error implies that it is not available
+            return True
+        except Exception:
+            return False
+
 
 class OctoPrintApiError(Exception):
     """Basic error for a bad response from the API"""
