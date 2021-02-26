@@ -1251,3 +1251,7 @@ class SimplyPrintComm:
             os.remove(temp_path)
         except Exception:
             self._logger.warning("Failed to remove file at {}".format(temp_path))
+
+        # We got to the end \o/
+        # Likely means everything went OK
+        return True
