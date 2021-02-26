@@ -157,7 +157,7 @@ class SimplyPrintBackground:
                 # OctoPrint < 1.5.0, no /api/server
                 return False
 
-            return server["safemode"] is not None
+            return server["safemode"] is None
 
         def check_pgmr():
             try:
