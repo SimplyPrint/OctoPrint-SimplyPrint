@@ -438,7 +438,7 @@ class SimplyPrintComm:
             if self._settings.get_int(["display_while_printing_type"]) != 2:
                 progress = self.get_print_job()["progress"]["completion"]
                 if progress is not None:
-                    self._set_display("Printing {}%".format(progress), True)
+                    self._set_display("Printing {}%".format(int(round(progress))), True)
             else:
                 self._set_display("Printing...", True)
 
