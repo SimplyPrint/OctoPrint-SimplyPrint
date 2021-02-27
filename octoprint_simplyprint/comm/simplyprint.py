@@ -566,14 +566,16 @@ class SimplyPrintComm:
             self._logger.debug("Cancelling print")
             self.printer.cancel_print()
 
-        if "pause_print" in demand_list:
+        if "do_pause" in demand_list:
             if not self.printer.is_paused():
                 self._set_display("Pausing...", True)
                 self._logger.debug("Pausing print")
                 self.printer.pause_print()
 
-        else:
+        if "do_resume" in demand_list:
             if self.printer.is_paused():
+                self._set_display("Resuming...", True)
+                self._logger.debug("Resuming print")
                 self.printer.resume_print()
 
         if "process_file" in demand_list:
