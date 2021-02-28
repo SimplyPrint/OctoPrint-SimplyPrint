@@ -88,6 +88,7 @@ class SimplyPrintBackground:
                         # Only restart after 2 consecutive failed checks
                         self._logger.warning("Trying to restart it now")
                         self.restart_octoprint()
+                        self.failed_checks = 0
 
                 elif not check_result and not self.was_octoprint_up:
                     self._logger.warning("OctoPrint hasn't been seen yet, skipping")
