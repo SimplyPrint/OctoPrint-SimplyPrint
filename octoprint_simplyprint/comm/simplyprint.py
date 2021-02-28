@@ -1131,8 +1131,9 @@ class SimplyPrintComm:
         return self._pip_caller.execute(*args)
 
     def _set_display(self, string, short_branding=False):
-        if not self._settings.get_boolean(["is_set_up"]) or not self._settings.get_boolean(["display_enabled"]):
-            # Don't set display if not set up or not enabled, bail instead
+        if self._settings.get_boolean(["is_set_up"]) and not self._settings.get_boolean(["display_enabled"]):
+            # Don't set display if set up and not enabled, bail instead
+            # Text should always display if printer is in setup mode
             return
 
         if not isinstance(string, str):
