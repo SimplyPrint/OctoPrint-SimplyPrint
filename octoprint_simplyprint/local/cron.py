@@ -36,9 +36,9 @@ class CronManager:
         for job in self.cron:
             comment = job.comment.lower()
             if (
-                ("simplyprint" in comment and comment is not background_comment.lower())
+                ("simplyprint" in comment and comment != background_comment.lower())
                 # Remove commands with the simplyrint in them, this was a typo in previous versions
-                or ("simplyrint" in job.command and comment is not background_comment.lower())
+                or ("simplyrint" in job.command and comment != background_comment.lower())
             ):
                 self._logger.info("Removing job, {}".format(comment))
                 self.cron.remove(job)
@@ -81,7 +81,7 @@ class CronManager:
         """
         for job in self.cron:
             job_comment = job.comment.lower()
-            if "simplyprint" in job_comment and job_comment is comment:
+            if "simplyprint" in job_comment and job_comment == comment.lower():
                 return True
         return False
 
