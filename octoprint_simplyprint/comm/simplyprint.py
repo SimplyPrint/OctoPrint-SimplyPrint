@@ -799,14 +799,20 @@ class SimplyPrintComm:
         if "flipH" in cam_settings and cam_settings["flipH"]:
             new["flipH"] = True
             self._settings.global_set(["webcam", "flipH"], True)
+        else:
+            self._settings.global_set(["webcam", "flipH"], False)
 
         if "flipV" in cam_settings and cam_settings["flipV"]:
             new["flipV"] = True
             self._settings.global_set(["webcam", "flipV"], True)
+        else:
+            self._settings.global_set(["webcam", "flipV"], False)
 
         if "rotate90" in cam_settings and cam_settings["rotate90"]:
-            self._settings.global_set(["webcam", "rotate90"], True)
             new["rotate90"] = True
+            self._settings.global_set(["webcam", "rotate90"], True)
+        else:
+            self._settings.global_set(["webcam", "rotate90"], False)
 
         self._settings.set(["webcam"], new)  # Set in SP
         self._settings.save()
