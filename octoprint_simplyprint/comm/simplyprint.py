@@ -350,7 +350,7 @@ class SimplyPrintComm:
                     diff = octoprint.util.dict_minimal_mergediff(octoprint_webcam, simplyprint_webcam)
                     if diff:
                         # Webcam settings in OctoPrint are different to SimplyPrint
-                        extra += "&webcam_options" + url_quote(json.dumps(octoprint_webcam))
+                        extra += "&webcam_options=" + url_quote(json.dumps(octoprint_webcam))
 
                     self.has_checked_webcam_options = True
 
@@ -992,7 +992,7 @@ class SimplyPrintComm:
             url_parameters += "&octoprint_status=" + event
 
         elif event == Events.FIRMWARE_DATA:
-            url_parameters += "&firmware_data=" + str(event_details)
+            url_parameters += "&firmware_data=" + url_quote(event_details)
 
         elif event == "plugin_firmware_check_warning":
             url_parameters += "&firmware_warning=" + str(event)
