@@ -203,7 +203,12 @@ class SimplyPrintComm:
 
         if not self._settings.get_boolean(["is_set_up"]):
             # Make sure the printer is connected when it's expecting setup
-            self.printer.connect()
+            if time.time() > self.last_connection_attempt + 60:
+                if self.printer.is_closed_or_error():
+                    # Only re-connect if we aren't already connected
+                    self._logger.info("Connecting printer")
+                    self.printer.connect()
+                    self.last_connection_attempt = time.time()
 
             url += "&new=true&printer_tmp_state=" + printer_state + \
                    "&custom_sys_version=" + str(self.plugin._plugin_version)
