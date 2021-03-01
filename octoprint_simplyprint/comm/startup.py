@@ -50,12 +50,15 @@ class SimplyPrintStartup:
         self.startup_thread = thread
 
     def startup(self):
-        ip = self.get_ip()
-        pi_model = self.get_pi_model()
-        ssid = self.get_wifi()
-        hostname = self.get_hostname()
+        # Filter out None values, switch to ''
+        no_none = lambda x: x if x is not None else ""
+
+        ip = no_none(self.get_ip())
+        pi_model = no_none(self.get_pi_model())
+        ssid = no_none(self.get_wifi())
+        hostname = no_none(self.get_hostname())
         octoprint_version, octoprint_api_version = self.get_octoprint_version()
-        python_version = self.get_python_version_str()
+        python_version = no_none(self.get_python_version_str())
 
         public_port = self.get_public_port()
         if public_port and public_port != 80:
