@@ -893,7 +893,7 @@ class SimplyPrintComm:
     def uninstall_plugin(self, action):
         self._logger.info("Uninstalling plugin {}".format(action["name"]))
         simplyprint_plugins = self._settings.get(["sp_installed_plugins"])
-        if action["name"] in simplyprint_plugins:
+        if isinstance(simplyprint_plugins, list) and action["name"] in simplyprint_plugins:
             simplyprint_plugins.remove(action["name"])
             self._settings.set(["sp_installed_plugins"], simplyprint_plugins)
             self._settings.save()
@@ -1075,6 +1075,8 @@ class SimplyPrintComm:
                     self.plugin._uninstall_sp()
 
             sp_plugins = self._settings.get(["sp_installed_plugins"])
+            if not isinstance(sp_plugins, list):
+                sp_plugins = []
             installed_plugins = []
 
             plugins = self.plugin._plugin_manager.plugins
