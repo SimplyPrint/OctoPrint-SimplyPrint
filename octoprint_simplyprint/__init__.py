@@ -297,6 +297,8 @@ __plugin_disabling_discouraged__ = """
 Please uninstall SimplyPrint Cloud rather than just disable it, since it sets up some background scripts
 that will continue to run if you disable it.
 """
+# Remember to bump the version in setup.py as well
+__plugin_version__ = "3.0.0"
 
 
 def __plugin_load__():

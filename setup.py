@@ -13,6 +13,7 @@ plugin_package = "octoprint_simplyprint"
 plugin_name = "SimplyPrint"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
+# Remember to bump the version in octoprint_simplyprint/__init__.py as well
 plugin_version = "3.0.0"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
