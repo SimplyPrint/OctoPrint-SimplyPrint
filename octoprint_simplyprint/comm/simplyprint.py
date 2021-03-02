@@ -851,14 +851,18 @@ class SimplyPrintComm:
         self._logger.info("Installing OctoPrint plugin {}".format(action["name"]))
 
         sp_installed_plugins = self._settings.get(["sp_installed_plugins"])
+        if action["key"] not in sp_installed_plugins:
+            sp_installed_plugins.append(action["key"])
         if isinstance(sp_installed_plugins, list):
             self._settings.set(
                 ["sp_installed_plugins"],
-                self._settings.get(["sp_installed_plugins"]).append(action["key"])
+                sp_installed_plugins
             )
         else:
             if action["key"] is not None:
                 self._settings.set(["sp_installed_plugins"], [action["key"]])
+
+        self._settings.save()
 
         pip_name = action["pip_name"]
         install_url = action["install_url"]
@@ -909,7 +913,7 @@ class SimplyPrintComm:
         return restart_octoprint
 
     def set_plugin_settings(self, action):
-        plugins_to_set = action["settings"]["plugins"].keys()
+        plugins_to_set = list(action["settings"]["plugins"].keys())
 
         if "plugins" in action["settings"]:
             # Find the plugin implementations and get them to save the data
