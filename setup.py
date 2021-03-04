@@ -13,7 +13,8 @@ plugin_package = "octoprint_simplyprint"
 plugin_name = "SimplyPrint"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
-plugin_version = "1.6.6"
+# Remember to bump the version in octoprint_simplyprint/__init__.py as well
+plugin_version = "3.0.0"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
@@ -32,7 +33,7 @@ plugin_url = "https://simplyprint.io/"
 plugin_license = "AGPLv3"
 
 # Any additional requirements besides OctoPrint should be listed here
-plugin_requires = ["pyyaml", "requests", "SimplyPrintRPiSoftware>=2.4.4"]
+plugin_requires = ["requests", "python-crontab"]
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point
@@ -70,6 +71,30 @@ except:
     import sys
 
     sys.exit(-1)
+
+
+###########################################
+# SIMPLYPRINT OCTOPRINT VERSION CHECK     #
+# SimplyPrint is only working with 1.3.12 #
+# Older versions need to update           #
+###########################################
+try:
+    from octoprint.util.version import is_octoprint_compatible
+except ImportError:
+    print("Could not find OctoPrint, are you sure you are installing under the same python installation"
+          "that OctoPrint is installed under?")
+    import sys
+    sys.exit(-1)
+
+if not is_octoprint_compatible(">=1.3.12"):
+    print("\n\n----------------------------------------\n\n")
+    print("!! Unsupported OctoPrint version !!\n")
+    print("SimplyPrint requires at least OctoPrint 1.3.12 to work properly, please update your OctoPrint install\n")
+    print("You can find out more about that here: http://simplyprint.io/redir?r=unsupported-octoprint")
+    print("\n")
+    import sys
+    sys.exit(-1)
+
 
 setup_parameters = octoprint_setuptools.create_plugin_setup_parameters(
     identifier=plugin_identifier,

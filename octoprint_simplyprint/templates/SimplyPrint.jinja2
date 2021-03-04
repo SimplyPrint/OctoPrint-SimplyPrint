@@ -9,15 +9,7 @@
         </h3>
     </div>
     <div class="modal-body">
-        <div data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed()">
-            <p>It looks like SimplyPrint wasn't setup properly locally. To try again, click below:</p>
-            <button type="button" class="btn btn-primary" data-bind="click: doSetup, enable: !requestInProgress()">
-                <i class="fa" data-bind="css: {'fa-spinner fa-spin' : requestInProgress()}"></i>
-                {{ _("Setup SimplyPrint Local") }}
-            </button>
-        </div>
-
-        <div data-bind="visible: settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed">
+        <div>
             <p id="spbiglcd"
                data-bind="css: {'dot-flashing': !settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id().length}, visible: !settingsViewModel.settings.plugins.SimplyPrint.is_set_up()">
                 <span data-bind="text: settingsViewModel.settings.plugins.SimplyPrint.temp_short_setup_id"></span>
@@ -41,7 +33,7 @@
                     <li>Web panel, iOS and Android app</li>
                     <li><i>and much, much, more...</i></li>
                 </ul>
-                <a href="https://simplyprint.io/signup" target="_blank" class="btn btn-primary"
+                <a href="https://simplyprint.io/signup?utm_source=octoprint" target="_blank" class="btn btn-primary"
                    style="margin-top:10px;">
                     <i class="fas fa-sign-in-alt"></i> Sign up for free - it only takes 5 minutes
                 </a>
