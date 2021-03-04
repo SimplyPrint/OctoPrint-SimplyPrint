@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, unicode_literals
+
 #
 # SimplyPrint
 # Copyright (C) 2020-2021  SimplyPrint ApS
@@ -163,7 +164,7 @@ class SimplyPrintComm:
 
     def _simply_get(self, url):
         url = url.replace(" ", "%20")
-        
+
         headers = {
             "User-Agent": "OctoPrint-SimplyPrint/{}".format(self.plugin._plugin_version),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -183,10 +184,10 @@ class SimplyPrintComm:
             raise
 
         return response
-    
+
     def ping(self, parameters=None):
         url = UPDATE_URL + "?id=" + self._settings.get(["rpi_id"]) + \
-                   "&api_version=" + API_VERSION
+              "&api_version=" + API_VERSION
 
         if parameters is not None:
             url += parameters
@@ -225,13 +226,13 @@ class SimplyPrintComm:
                         to_set["bed_temp"] = round(bed_temp)
                     else:
                         to_set["bed_temp"] = 0
-                    
+
                     bed_target = printer_info["temperature"]["bed"]["target"]
                     if bed_target is not None:
                         to_set["target_bed_temp"] = round(bed_target)
                     else:
                         to_set["target_bed_temp"] = 0
-                        
+
                 if "temperature" in printer_info and "tool0" in printer_info["temperature"]:
                     tool_temp = printer_info["temperature"]["tool0"]["actual"]
                     if tool_temp is not None:
@@ -246,23 +247,23 @@ class SimplyPrintComm:
                         to_set["target_tool_temp"] = 0
 
             if (
-                self.printer.is_printing()
-                or self.printer.is_cancelling()
-                or self.printer.is_pausing()
-                or self.printer.is_pausing()
-                or self.printer.is_paused()
+                    self.printer.is_printing()
+                    or self.printer.is_cancelling()
+                    or self.printer.is_pausing()
+                    or self.printer.is_pausing()
+                    or self.printer.is_paused()
             ):
                 print_job = self.get_print_job()
                 if "completion" in print_job["progress"] and print_job["progress"]["completion"] is not None:
                     to_set["completion"] = round(float(print_job["progress"]["completion"]))
-                
+
                 to_set["estimated_finish"] = print_job["progress"]["printTimeLeft"]
-                
+
                 if print_job["job"]["filament"] is not None:
                     to_set["filament_usage"] = print_job["job"]["filament"]["tool0"]["volume"]
 
                 to_set["initial_estimate"] = print_job["job"]["estimatedPrintTime"]
-                
+
             url += "&custom_sys_version=" + str(self.plugin._plugin_version)
 
             url += "&pstatus=" + printer_state + "&extra=" + url_quote(json.dumps(to_set))
@@ -384,7 +385,8 @@ class SimplyPrintComm:
             else:
                 self._logger.info("Had empty RPI ID, still empty :/")
 
-        if not self._settings.get_boolean(["is_set_up"]) and "printer_set_up" in response_json and response_json["printer_set_up"]:
+        if not self._settings.get_boolean(["is_set_up"]) and "printer_set_up" in response_json and response_json[
+            "printer_set_up"]:
             # RPI thinks its not set up, but server does
             self._logger.debug("Setting is_set_up")
             self._settings.set_boolean(["is_set_up"], True)
@@ -649,7 +651,7 @@ class SimplyPrintComm:
             self._logger.info("Pulled GCODE scripts from SP server")
             # Scripts don't go to config.yaml, so it does not show as modified - force it
             self._settings.save(force=True, trigger_event=True)
-            
+
             self.ping("&gcode_scripts_fetched")
 
     def _run_system_command(self, name, command):
@@ -671,7 +673,8 @@ class SimplyPrintComm:
                 stdout_text = p.stdout.text
                 stderr_text = p.stderr.text
                 self._logger.error("Command for {}:{} failed with return code {}:"
-                                   "\nSTDOUT: {}\nSTDERR: {}".format(name, command, p.returncode, stdout_text, stderr_text))
+                                   "\nSTDOUT: {}\nSTDERR: {}".format(name, command, p.returncode, stdout_text,
+                                                                     stderr_text))
             else:
                 self._logger.debug("Command successful :)")
 
@@ -682,17 +685,16 @@ class SimplyPrintComm:
             self._logger.erorr(repr(e))
 
     def demand_backup_gcode_scripts(self):
-        if not self._settings.get_boolean(["info", "gocde_scripts_backed_up"]):
+        if not self._settings.get_boolean(["info", "gcode_scripts_backed_up"]):
             # Check if user has GCODE scripts in OctoPrint that should be backed up
+            default_cancel_gcode = ";disablemotorsM84;disableallheaters{%snippet'disable_hotends'%}{%snippet'disable_bed'%};disablefanM106S0"
 
-            default_cancel_gcode = ";disable motorsM84;disable all heaters{% snippet 'disable_hotends' %}{% snippet 'disable_bed' %};disable fanM106 S0"
-
-            current_cancel_gcode = self._settings.global_get(["scripts", "gcode", "afterPrintCancelled"])
+            current_cancel_gcode = self._settings.settings.loadScript("gcode", "afterPrintCancelled", source=True)
             if current_cancel_gcode.replace(" ", "").replace("\n", "") == default_cancel_gcode:
                 current_cancel_gcode = ""
 
-            current_resume_gcode = self._settings.global_get(["scripts", "gcode", "beforePrintResumed"])
-            current_pause_gcode = self._settings.global_get(["scripts", "gcode", "afterPrintPaused"])
+            current_resume_gcode = self._settings.settings.loadScript("gcode", "beforePrintResumed", source=True)
+            current_pause_gcode = self._settings.settings.loadScript("gcode", "afterPrintPaused", source=True)
 
             if current_cancel_gcode or current_resume_gcode or current_pause_gcode:
                 self._logger.info("Syncing local GCODE scripts to SP")
@@ -706,6 +708,9 @@ class SimplyPrintComm:
                 self.ping("&no_gcode_script_backup_needed")
 
             self._settings.set_boolean(["info", "gcode_scripts_backed_up"], True)
+        else:
+            self._logger.info("SP asked for GCODE backups, but already done that for this instance")
+            self.ping("&no_gcode_script_backup_needed&alreadydone")
 
     # Demand handling ====================================
 
@@ -1005,37 +1010,37 @@ class SimplyPrintComm:
 
         elif event == "plugin_firmware_check_warning":
             url_parameters += "&firmware_warning=" + str(event)
-        
+
         elif event == "plugin_bedlevelvisualizer_mesh_data_collected":
             mesh_data = url_quote(json.dumps(payload["mesh"]))
             url_parameters += "&mesh_data=" + mesh_data
 
         elif event == "plugin_simplyfilamentsensor_filament_loaded":
             url_parameters += "&filament_sensor=loaded"
-        
+
         elif event == "plugin_simplyfilamentsensor_filament_runout":
             url_parameters += "&filament_sensor=runout"
-        
+
         elif event == "plugin_simplyfilamentsensor_filament_no_filament_print_on_print_start":
             url_parameters += "&filament_sensor=print_stopped"
 
         elif event == "plugin_simplypowercontroller_power_on":
             url_parameters += "&power_controller=on"
-        
+
         elif event == "plugin_simplypowercontroller_power_off":
             url_parameters += "&power_controller=off"
-            
+
         # OctoPrint metadata analysis
         elif event == Events.METADATA_ANALYSIS_FINISHED:
             if (
-                "result" in payload
-                and "analysisPending" in payload["result"]
-                and not payload["result"]["analysisPending"]
-                and payload["name"][0:3] == "sp_"
-                and "filament" in payload["result"]
-                and payload["path"] not in self._files_analyzed
-                and payload["origin"] == "local"
-                and self.printer.is_current_file(payload["path"], False)
+                    "result" in payload
+                    and "analysisPending" in payload["result"]
+                    and not payload["result"]["analysisPending"]
+                    and payload["name"][0:3] == "sp_"
+                    and "filament" in payload["result"]
+                    and payload["path"] not in self._files_analyzed
+                    and payload["origin"] == "local"
+                    and self.printer.is_current_file(payload["path"], False)
             ):
                 self._logger.info("Got analysis from a SP uploaded file")
 
@@ -1054,10 +1059,10 @@ class SimplyPrintComm:
                     self._logger.warning("Filament usage is reportedly 0mm, not worth reporting")
 
         elif (
-            event == Events.FILE_REMOVED
-            and isinstance(payload, dict)
-            and "name" in payload
-            and payload["name"][:3] == "sp_"
+                event == Events.FILE_REMOVED
+                and isinstance(payload, dict)
+                and "name" in payload
+                and payload["name"][:3] == "sp_"
         ):
             url_parameters += "&file_removed=" + url_quote(payload["name"])
 
@@ -1099,7 +1104,8 @@ class SimplyPrintComm:
         port = self.plugin.port
         api_key = self._settings.global_get(["api", "key"])
         try:
-            response = requests.get("http://127.0.0.1:{}/plugin/softwareupdate/check".format(port), headers={"X-Api-Key": api_key}, timeout=5)
+            response = requests.get("http://127.0.0.1:{}/plugin/softwareupdate/check".format(port),
+                                    headers={"X-Api-Key": api_key}, timeout=5)
             if not 200 <= response.status_code <= 210:
                 # Response code no good
                 self._logger.warning("Couldn't check for an OctoPrint update, API returned invalid response")
@@ -1119,7 +1125,8 @@ class SimplyPrintComm:
         available_updates = []
         if "information" in response_json:
             for plugin in response_json["information"]:
-                if "updateAvailable" in response_json["information"][plugin] and response_json["information"][plugin]["updateAvailable"]:
+                if "updateAvailable" in response_json["information"][plugin] and response_json["information"][plugin][
+                    "updateAvailable"]:
                     release_notes = response_json["information"][plugin]["releaseNotes"]
                     new_version = response_json["information"][plugin]["information"]["remote"]["name"]
 
