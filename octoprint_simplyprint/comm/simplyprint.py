@@ -830,6 +830,9 @@ class SimplyPrintComm:
 
     def demand_plugin_action(self, demand_list):
         restart_octoprint = False
+        if "is_plugin_update" in demand_list:
+            self.ping("&system_update_started")
+
         for action in demand_list["octoprint_plugin_action"]:
             if action["type"] == "install":
                 restart_octoprint = self.install_plugin(action)
