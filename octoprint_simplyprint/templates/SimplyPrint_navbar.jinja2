@@ -3,7 +3,7 @@
         <a href="https://simplyprint.io/panel" target="_blank"><img alt="SimplyPrint logo (all rights reserved)" src="plugin/SimplyPrint/static/img/sp_logo.png" title="SimplyPrint active" style="width: 28px;"></a>
 
         <strong>
-            <span id="simplyprint_version_wrapper">v<span data-bind="text: settingsViewModel.settings.plugins.SimplyPrint.simplyprint_version, visible: settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed"></span></span>
+            <span id="simplyprint_version_wrapper">v{{ plugin_SimplyPrint_version }}</span>
         </strong>
 
         <div id="simplyprint_loading_info" data-bind="visible: loading">
@@ -26,8 +26,5 @@
             >
             </div>
         </div>
-        <span id="simplyprint_not_installed" data-bind="visible: !settingsViewModel.settings.plugins.SimplyPrint.sp_local_installed()">
-            <a href="#" data-bind="click: function(){ settingsViewModel.show('#settings_plugin_SimplyPrint'); }"><i class="fa fa-times" style="color:red;" aria-hidden="true"></i><b>{{ _("Not installed! Click here") }}</b></a>
-        </span>
     </div>
 </div>

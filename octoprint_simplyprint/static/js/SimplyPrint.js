@@ -67,7 +67,8 @@ $(function () {
         self.loading = ko.observable(true);
 
         self.onAfterBinding = function () {
-            if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up()) {
+            // Chose #wizard_plugin_corewizard_onlinecheck because it seemed likely it would be there for all first time
+            if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up() && !$('#wizard_plugin_corewizard_onlinecheck').length) {
                 $('#SimplyPrintWelcome').modal("show");
             }
 
@@ -77,6 +78,13 @@ $(function () {
             }
 
             self.loading(false);
+        }
+
+        self.onWizardFinish = function(){
+            // Show the welcome dialog if corewizard was open
+            if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up() && $('#wizard_plugin_corewizard_onlinecheck').length) {
+                $('#SimplyPrintWelcome').modal("show");
+            }
         }
 
         function SetupRecommended() {
