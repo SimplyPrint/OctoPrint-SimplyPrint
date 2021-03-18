@@ -32,7 +32,6 @@ import octoprint.settings
 from octoprint_simplyprint.comm import SimplyPrintComm
 from octoprint_simplyprint.local import cron
 
-
 SIMPLYPRINT_EVENTS = [
     Events.CONNECTING,
     Events.CONNECTED,
@@ -89,7 +88,6 @@ class SimplyPrint(
     octoprint.plugin.EventHandlerPlugin,
     octoprint.plugin.ShutdownPlugin,
 ):
-
     _files_analyzed = []
 
     simply_print = None
@@ -127,11 +125,8 @@ class SimplyPrint(
         if not cron.check_cron_jobs():
             cron.create_cron_jobs()
 
-
         # The "Startup" event is never picked up by the plugin, as the plugin is loaded AFTER startup
         self.on_event("Startup", {})
-
-
 
     def on_shutdown(self):
         if self.simply_print is not None:
@@ -298,7 +293,7 @@ Please uninstall SimplyPrint Cloud rather than just disable it, since it sets up
 that will continue to run if you disable it.
 """
 # Remember to bump the version in setup.py as well
-__plugin_version__ = "3.0.0"
+__plugin_version__ = "3.0.1"
 
 
 def __plugin_load__():
