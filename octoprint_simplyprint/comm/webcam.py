@@ -138,7 +138,6 @@ def start_livestream(queue, old_thread=None):
 
 
 def livestream_loop(queue):
-
     fails = 0
     every = 1
 

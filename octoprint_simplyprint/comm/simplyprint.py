@@ -88,6 +88,8 @@ class SimplyPrintComm:
 
         self.last_connection_attempt = time.time()
         self.first = True
+        self.requests_failed = 0
+        self.last_json_err = None
         self._files_analyzed = []
 
         self.times_per_minute = 45
@@ -121,7 +123,61 @@ class SimplyPrintComm:
 
             # SimplyPrint ping & do commands
             try:
-                self.request()
+                request = self.request()
+
+                if request:
+                    # Request is good!
+                    if self.requests_failed > 0:
+                        self._set_display("Back online!", True)
+                        self.requests_failed = 0
+                else:
+                    tenth = self.requests_failed % 10 == 0
+
+                    if request is False:
+                        # Failed to request - probably no internet
+                        if has_internet():
+                            # SimplyPrint is down / can't be reached - has connection to the internet
+                            if tenth:
+                                self._logger.info("Can't reach SimplyPrint ({})".format(str(self.requests_failed + 1)))
+                                self._set_display("Can't reach SP", True)
+                        else:
+                            # Internet down
+                            if tenth:
+                                self._logger.info("Has no internet ({})".format(str(self.requests_failed + 1)))
+                                self._set_display("No internet", True)
+                    elif request is None:
+                        # Failed to decode JSON
+                        if tenth:
+                            opt_json = ""
+
+                            self._set_display("Decode failed", True)
+
+                            if self.last_json_err is not None:
+                                opt_json = "; " + str(self.last_json_err)
+
+                            self._logger.info("Failed to decode JSON from SimplyPrint request ({})".format(
+                                str(self.requests_failed + 1)) + opt_json)
+
+                    self.requests_failed += 1
+
+                    if self.requests_failed >= 3:
+                        # Wait some time before trying again
+                        if self.requests_failed >= 500:
+                            sleeptime = 120
+                        elif self.requests_failed >= 200:
+                            sleeptime = 30
+                        elif self.requests_failed >= 100:
+                            sleeptime = 20
+                        elif self.requests_failed > 50:
+                            sleeptime = 10
+                        else:
+                            sleeptime = 5
+
+                        if 60 / sleeptime <= self.times_per_minute:
+                            time.sleep(sleeptime)
+                            # Do next request right away
+                            continue
+
             except Exception as e:
                 self._logger.exception(e)
 
@@ -175,9 +231,10 @@ class SimplyPrintComm:
         try:
             response = requests.get(url, headers=headers, timeout=5)
         except requests.exceptions.RequestException as e:
-            self._logger.error("Error sending get request to SimplyPrint")
-            self._logger.error(repr(e))
-            raise
+            if self.requests_failed % 10 == 0:
+                self._logger.error("Error sending get request to SimplyPrint")
+                self._logger.error(repr(e))
+            return False
 
         return response
 
@@ -302,10 +359,12 @@ class SimplyPrintComm:
         if not rpi_id:
             try:
                 response = self.ping("&request_rpid")
+                if response is False:
+                    return False
             except Exception as e:
                 self._logger.error("Exception pinging simplyprint for rpid")
                 self._logger.error(repr(e))
-                return
+                return False
         else:
             if self.request_settings_next_time:
                 extra = "&request_settings"
@@ -358,18 +417,23 @@ class SimplyPrintComm:
 
             try:
                 response = self.ping("&recv_commands" + extra)
+                if response is False:
+                    return False
             except Exception as e:
                 self._logger.error("Exception pinging simplyprint for extra {}".format(extra))
                 self._logger.error(repr(e))
-                return
+                return False
 
         try:
             response_json = response.json()
+            self.last_json_err = None
         except ValueError as e:
             # Response was not valid json
-            self._logger.error("Failed to parse json")
-            self._logger.exception(e)
-            return
+            self.last_json_err = response.content
+            if self.requests_failed % 10 == 0:
+                self._logger.error("Failed to parse json")
+                self._logger.exception(e)
+            return None
 
         if not rpi_id:
             # had empty RPI id - save new from server
@@ -406,6 +470,8 @@ class SimplyPrintComm:
                 self.times_per_minute = int(response_settings["times_per_minute"])
 
             self.process_demands(demand_list, response_json)
+
+        return True
 
     def process_demands(self, demand_list, response_json):
         if any_demand(demand_list, ["identify_printer", "do_gcode", "gcode_code"]):
