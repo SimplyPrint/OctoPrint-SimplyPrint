@@ -1273,6 +1273,7 @@ class SimplyPrintComm:
 
         if not response.status_code == 200:
             self._logger.error("Reponse from download URL {} was {}".format(download_url, response.status_code))
+            return False
 
         # response.content currently contains the file's content in memory, now write it to a temporary file
         temp_dir = tempfile.gettempdir()
