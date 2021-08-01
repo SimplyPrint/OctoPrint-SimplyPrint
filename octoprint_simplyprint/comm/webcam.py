@@ -80,12 +80,13 @@ def post_image(picture_id=None):
                 return
 
             if int(round(response.status_code / 100)) != 2:
-                log.error("Received non-2xx status code from SP, content: {}".format(response.content))
+                log.error("Received non-2xx status code from SP for url {}, content: {}".format(upl_url,
+                                                                                                response.content))
 
         try:
             os.remove(temp_path)
-        except FileNotFoundError:
-            pass
+        # except FileNotFoundError:
+        #    pass
         except Exception:
             log.warning("Could not remove webcam snapshot tempfile")
 
@@ -142,6 +143,7 @@ def livestream_loop(queue):
     every = 1
 
     log.info("Starting streaming to server")
+    log.info("Streaming to; " + WEBCAM_SNAPSHOT_URL)
 
     while True:
         if fails >= 10 or not queue.empty():

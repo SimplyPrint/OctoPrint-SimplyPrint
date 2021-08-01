@@ -312,7 +312,8 @@ class SimplyPrintComm:
 
                 to_set["estimated_finish"] = print_job["progress"]["printTimeLeft"]
 
-                if print_job["job"]["filament"] is not None:
+                if "filament" in print_job["job"] and print_job["job"]["filament"] is not None and "tool0" in \
+                        print_job["job"]["filament"] and "volume" in print_job["job"]["filament"]["tool0"]["volume"]:
                     to_set["filament_usage"] = print_job["job"]["filament"]["tool0"]["volume"]
 
                 to_set["initial_estimate"] = print_job["job"]["estimatedPrintTime"]
@@ -431,7 +432,7 @@ class SimplyPrintComm:
             # Response was not valid json
             self.last_json_err = response.content
             if self.requests_failed % 10 == 0:
-                self._logger.error("Failed to parse json")
+                self._logger.error("Failed to parse json, response from; " + response.text)
                 self._logger.exception(e)
             return None
 
@@ -675,9 +676,14 @@ class SimplyPrintComm:
             self.printer.start_print()
 
         if "test_endpoint" in demand_list:
-            constants.UPDATE_URL = "testrequest.simplyprint.io"
+            constants.UPDATE_URL = "https://testrequest.simplyprint.io/"
         else:
-            constants.UPDATE_URL = "request.simplyprint.io"
+            constants.UPDATE_URL = "https://request.simplyprint.io/"
+
+        if "test_livestream" in demand_list:
+            constants.WEBCAM_SNAPSHOT_URL = "https://testlivestream.simplyprint.io/"
+        else:
+            constants.WEBCAM_SNAPSHOT_URL = "https://livestream.simplyprint.io/"
 
     def demand_update_system(self):
         self._logger.info("Updating system...")
@@ -1343,8 +1349,8 @@ class SimplyPrintComm:
         # Remove temporary file (we didn't forget about you!)
         try:
             os.remove(temp_path)
-        except FileNotFoundError:
-            pass
+        # except FileNotFoundError:
+        #    pass
         except Exception:
             self._logger.warning("Failed to remove file at {}".format(temp_path))
 
