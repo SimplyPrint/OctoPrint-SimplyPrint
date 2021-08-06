@@ -312,9 +312,12 @@ class SimplyPrintComm:
 
                 to_set["estimated_finish"] = print_job["progress"]["printTimeLeft"]
 
-                if "filament" in print_job["job"] and print_job["job"]["filament"] is not None and "tool0" in \
-                        print_job["job"]["filament"] and "volume" in print_job["job"]["filament"]["tool0"]["volume"]:
-                    to_set["filament_usage"] = print_job["job"]["filament"]["tool0"]["volume"]
+                try:
+                    if "filament" in print_job["job"] and print_job["job"]["filament"] is not None and "tool0" in \
+                            print_job["job"]["filament"] and "volume" in print_job["job"]["filament"]["tool0"]:
+                        to_set["filament_usage"] = print_job["job"]["filament"]["tool0"]["volume"]
+                except:
+                    pass
 
                 to_set["initial_estimate"] = print_job["job"]["estimatedPrintTime"]
 
