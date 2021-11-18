@@ -69,6 +69,8 @@ SIMPLYPRINT_EVENTS = [
     "plugin_simplyfilamentsensor_no_filament_on_print_start_paused",
     "plugin_simplyfilamentsensor_no_filament_on_print_start_cancelled",
 
+    "plugin_psucontrol_psu_state_changed",
+
     "plugin_simplypowercontroller_power_on",
     "plugin_simplypowercontroller_power_off",
 
@@ -279,7 +281,19 @@ class SimplyPrint(
                 user="SimplyPrint",
                 repo="OctoPrint-SimplyPrint",
                 current=self._plugin_version,
-
+                stable_branch=dict(name="Stable", branch="master", comittish=["master"]),
+                prerelease_branches=[
+                    dict(
+                        name="Development",
+                        branch="devel",
+                        comittish=["develop", "rc", "master"],
+                    ),
+                    dict(
+                        name="Release Candidate",
+                        branch="rc",
+                        comittish=["rc", "master"],
+                    )
+                ],
                 # update method: pip
                 pip="https://github.com/SimplyPrint/OctoPrint-SimplyPrint/archive/{target_version}.zip"
             )

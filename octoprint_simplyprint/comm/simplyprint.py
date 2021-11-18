@@ -309,7 +309,8 @@ class SimplyPrintComm:
                 print_job = self.get_print_job()
                 if "completion" in print_job["progress"] and print_job["progress"]["completion"] is not None:
                     to_set["completion"] = round(float(print_job["progress"]["completion"]))
-
+                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"]["printTimeLeftOrigin"] == "genius":
+                    to_set["completion"] = round(float(print_job["progress"]["printTime"] or 0) / (float(print_job["progress"]["printTime"] or 0) + float(print_job["progress"]["printTimeLeft"])) * 100)
                 to_set["estimated_finish"] = print_job["progress"]["printTimeLeft"]
 
                 try:
@@ -380,13 +381,20 @@ class SimplyPrintComm:
                     self.first = False
 
                 if self._settings.get_boolean(["has_power_controller"]) and not self.has_checked_power_controller:
-                    helpers = self.plugin._plugin_manager.get_helpers("simplypowercontroller")
-                    if helpers and helpers["get_status"]:
-                        status = helpers["get_status"]()
-                        if "isPSUOn" in status and status["isPSUOn"]:
-                            extra += "&power_controller=on"
-                        else:
-                            extra += "&power_controller=off"
+                    helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+                    if helpers:
+                        if helpers["get_psu_state"]:
+                            status = helpers["get_psu_state"]()
+                            if status is True:
+                                extra += "&power_controller=on"
+                            else:
+                                extra += "&power_controller=off"
+                        if helpers["get_status"]:
+                            status = helpers["get_status"]()
+                            if "isPSUOn" in status and status["isPSUOn"]:
+                                extra += "&power_controller=on"
+                            else:
+                                extra += "&power_controller=off"
 
                     self.has_checked_power_controller = True
 
@@ -510,7 +518,11 @@ class SimplyPrintComm:
 
         if self.printer.is_printing():
             if self._settings.get_int(["display_while_printing_type"]) != 2:
-                progress = self.get_print_job()["progress"]["completion"]
+                print_job = self.get_print_job()
+                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"]["printTimeLeftOrigin"] == "genius":
+                    progress = float(print_job["progress"]["printTime"] or 0) / (float(print_job["progress"]["printTime"] or 0) + float(print_job["progress"]["printTimeLeft"])) * 100
+                else:
+                    progress = print_job["progress"]["completion"]
                 if progress is not None:
                     self._set_display("Printing {}%".format(int(round(progress))), True)
             else:
@@ -576,12 +588,20 @@ class SimplyPrintComm:
             pass
 
         if any_demand(demand_list, ["psu_on", "psu_keepalive"]):
-            helpers = self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            # psucontrol plugin
+            if helpers and helpers["turn_psu_on"]:
+                helpers["turn_psu_on"]()
+            # simplypowercontroller plugin
             if helpers and helpers["psu_on"]:
                 helpers["psu_on"]()
 
         if "psu_off" in demand_list:
-            helpers = self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            # psucontrol plugin
+            if helpers and helpers["turn_psu_off"]:
+                helpers["turn_psu_off"]()
+            # simplypowercontroller plugin
             if helpers and helpers["psu_off"]:
                 helpers["psu_off"]()
             pass
@@ -753,7 +773,7 @@ class SimplyPrintComm:
             execute()
         except Exception as e:
             self._logger.error("Error running command {}".format(command))
-            self._logger.erorr(repr(e))
+            self._logger.error(repr(e))
 
     def demand_backup_gcode_scripts(self):
         if not self._settings.get_boolean(["info", "gcode_scripts_backed_up"]):
@@ -1097,6 +1117,12 @@ class SimplyPrintComm:
 
         elif event == "plugin_simplyfilamentsensor_filament_no_filament_print_on_print_start":
             url_parameters += "&filament_sensor=print_stopped"
+
+        elif event == "plugin_psucontrol_psu_state_changed":
+            if payload["isPSUOn"] is True:
+                url_parameters += "&power_controller=on"
+            else:
+                url_parameters += "&power_controller=off"
 
         elif event == "plugin_simplypowercontroller_power_on":
             url_parameters += "&power_controller=on"
