@@ -383,13 +383,13 @@ class SimplyPrintComm:
                 if self._settings.get_boolean(["has_power_controller"]) and not self.has_checked_power_controller:
                     helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
                     if helpers:
-                        if helpers["get_psu_state"]:
+                        if "get_psu_state" in helpers:
                             status = helpers["get_psu_state"]()
                             if status is True:
                                 extra += "&power_controller=on"
                             else:
                                 extra += "&power_controller=off"
-                        if helpers["get_status"]:
+                        if "get_status" in helpers:
                             status = helpers["get_status"]()
                             if "isPSUOn" in status and status["isPSUOn"]:
                                 extra += "&power_controller=on"
@@ -590,19 +590,19 @@ class SimplyPrintComm:
         if any_demand(demand_list, ["psu_on", "psu_keepalive"]):
             helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
             # psucontrol plugin
-            if helpers and helpers["turn_psu_on"]:
+            if "turn_psu_on" in helpers:
                 helpers["turn_psu_on"]()
             # simplypowercontroller plugin
-            if helpers and helpers["psu_on"]:
+            if "psu_on" in helpers:
                 helpers["psu_on"]()
 
         if "psu_off" in demand_list:
             helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
             # psucontrol plugin
-            if helpers and helpers["turn_psu_off"]:
+            if "turn_psu_off" in helpers:
                 helpers["turn_psu_off"]()
             # simplypowercontroller plugin
-            if helpers and helpers["psu_off"]:
+            if "psu_off" in helpers:
                 helpers["psu_off"]()
             pass
 
