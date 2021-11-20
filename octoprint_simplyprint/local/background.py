@@ -68,7 +68,7 @@ class SimplyPrintBackground:
 
     def mainloop(self):
         port = self._octoprint_settings.get(["public_port"])
-        if port is not None and port is not 80:
+        if port is not None and port != "" and port != "80":
             ip = "http://127.0.0.1:{}".format(port)
         else:
             ip = "http://127.0.0.1"

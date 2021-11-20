@@ -61,7 +61,7 @@ class SimplyPrintStartup:
         python_version = no_none(self.get_python_version_str())
 
         public_port = self.get_public_port()
-        if public_port and public_port != 80:
+        if public_port and public_port != "" and public_port != "80":
             ip = "{}:{}".format(ip, public_port)
 
         url = "&startup=true" \
@@ -159,4 +159,4 @@ class SimplyPrintStartup:
 
     def get_public_port(self):
         # noinspection PyProtectedMember
-        return self.simply_print._settings.get_int(["public_port"])
+        return self.simply_print._settings.get(["public_port"])
