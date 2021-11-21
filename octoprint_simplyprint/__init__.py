@@ -272,8 +272,10 @@ class SimplyPrint(
             return line
 
         if line == "echo:busy: paused for user":
+            self._logger.debug("received line: echo:busy: paused for user, setting fake_paused True")
             self.simply_print.fake_paused = True
         if self.simply_print.fake_paused and line == "echo:busy: processing":
+            self._logger.debug("received line: echo:busy: processing, setting fake_paused False")
             self.simply_print.fake_paused = False
 
         return line

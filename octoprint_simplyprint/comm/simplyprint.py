@@ -326,6 +326,7 @@ class SimplyPrintComm:
 
             url += "&pstatus=" + printer_state
             if self.fake_paused:
+                self._logger.debug("using fakepaused")
                 url += "&fakepaused"
             url += "&extra=" + url_quote(json.dumps(to_set))
 
