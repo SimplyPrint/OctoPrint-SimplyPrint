@@ -343,7 +343,7 @@ class SimplyPrintComm:
             result.update({"sd": {"ready": self.printer.is_sd_ready()}})
 
         result.update({"state": self.printer.get_current_data()["state"]})
-        if self.user_input_required:
+        if self.user_input_required and self.printer.is_printing():
             result.update({"state": {"text": "Paused", "flags": {"paused": True}}})
 
         return result
