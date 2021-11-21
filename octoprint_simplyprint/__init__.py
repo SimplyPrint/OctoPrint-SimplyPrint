@@ -268,7 +268,7 @@ class SimplyPrint(
     #         self._logger.info("Just sent M106: {cmd}".format(**locals()))
 
     def gcode_received(self, comm_instance, line, *args, **kwargs):
-        if line.strip() != "echo:busy: paused for user" or line.strip() != "echo:busy: processing":
+        if line.strip() not in ["echo:busy: paused for user", "echo:busy: processing"]:
             self._logger.debug(line.strip())
             return line
 
