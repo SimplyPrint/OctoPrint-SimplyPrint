@@ -272,11 +272,11 @@ class SimplyPrint(
             return line
 
         if line.strip() == "echo:busy: paused for user":
-            self._logger.debug("received line: echo:busy: paused for user, setting fake_paused True")
-            self.simply_print.fake_paused = True
-        if self.simply_print.fake_paused and line.strip() == "echo:busy: processing":
-            self._logger.debug("received line: echo:busy: processing, setting fake_paused False")
-            self.simply_print.fake_paused = False
+            self._logger.debug("received line: echo:busy: paused for user, setting user_input_required True")
+            self.simply_print.user_input_required = True
+        if self.simply_print.user_input_required and line.strip() == "echo:busy: processing":
+            self._logger.debug("received line: echo:busy: processing, setting user_input_required False")
+            self.simply_print.user_input_required = False
 
         return line
 

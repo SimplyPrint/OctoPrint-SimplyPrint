@@ -85,7 +85,7 @@ class SimplyPrintComm:
         self.has_checked_filament_sensor = False
         self.previous_printer_text = ""
         self.state_timer = None
-        self.fake_paused = False
+        self.user_input_required = False
 
         self.last_connection_attempt = time.time()
         self.first = True
@@ -324,13 +324,9 @@ class SimplyPrintComm:
 
             url += "&custom_sys_version=" + str(self.plugin._plugin_version)
 
-            if self.fake_paused:
-                self._logger.debug("using fakepaused")
-                printer_state = "Paused"
-                url += "&fakepaused"
-
             url += "&pstatus=" + printer_state
-
+            if self.user_input_required:
+                url += "&userinputrequired"
             url += "&extra=" + url_quote(json.dumps(to_set))
 
         return self._simply_get(url)
@@ -347,7 +343,7 @@ class SimplyPrintComm:
             result.update({"sd": {"ready": self.printer.is_sd_ready()}})
 
         result.update({"state": self.printer.get_current_data()["state"]})
-        if self.fake_paused:
+        if self.user_input_required:
             result.update({"state": {"text": "Paused", "flags": {"paused": True}}})
 
         return result
