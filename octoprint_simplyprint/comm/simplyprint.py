@@ -85,6 +85,7 @@ class SimplyPrintComm:
         self.has_checked_filament_sensor = False
         self.previous_printer_text = ""
         self.state_timer = None
+        self.fake_paused = False
 
         self.last_connection_attempt = time.time()
         self.first = True
@@ -303,7 +304,6 @@ class SimplyPrintComm:
                     self.printer.is_printing()
                     or self.printer.is_cancelling()
                     or self.printer.is_pausing()
-                    or self.printer.is_pausing()
                     or self.printer.is_paused()
             ):
                 print_job = self.get_print_job()
@@ -324,7 +324,10 @@ class SimplyPrintComm:
 
             url += "&custom_sys_version=" + str(self.plugin._plugin_version)
 
-            url += "&pstatus=" + printer_state + "&extra=" + url_quote(json.dumps(to_set))
+            url += "&pstatus=" + printer_state
+            if self.fake_paused:
+                url += "&fakepaused"
+            url += "&extra=" + url_quote(json.dumps(to_set))
 
         return self._simply_get(url)
 
@@ -340,6 +343,8 @@ class SimplyPrintComm:
             result.update({"sd": {"ready": self.printer.is_sd_ready()}})
 
         result.update({"state": self.printer.get_current_data()["state"]})
+        if self.fake_paused:
+            result.update({"state": {"text": "Paused", "flags": {"paused": True}}})
 
         return result
 
