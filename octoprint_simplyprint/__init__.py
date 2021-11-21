@@ -271,10 +271,10 @@ class SimplyPrint(
         if line not in ["echo:busy: paused for user", "echo:busy: processing"]:
             return line
 
-        if line.strip() == "echo:busy: paused for user":
+        if "paused for user" in line.strip():
             self._logger.debug("received line: echo:busy: paused for user, setting fake_paused True")
             self.simply_print.fake_paused = True
-        if self.simply_print.fake_paused and line.strip() == "echo:busy: processing":
+        if self.simply_print.fake_paused and "busy: processing" in line.strip():
             self._logger.debug("received line: echo:busy: processing, setting fake_paused False")
             self.simply_print.fake_paused = False
 
