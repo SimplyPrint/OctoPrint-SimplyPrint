@@ -324,10 +324,13 @@ class SimplyPrintComm:
 
             url += "&custom_sys_version=" + str(self.plugin._plugin_version)
 
-            url += "&pstatus=" + printer_state
             if self.fake_paused:
                 self._logger.debug("using fakepaused")
+                printer_state = "Paused"
                 url += "&fakepaused"
+
+            url += "&pstatus=" + printer_state
+
             url += "&extra=" + url_quote(json.dumps(to_set))
 
         return self._simply_get(url)
