@@ -687,7 +687,7 @@ class SimplyPrintComm:
                 else:
                     name = str(uuid.uuid1())
 
-                name = "sp_{}.gcode".format(name)
+                name = "{}.gcode".format(name)
 
                 status = self._process_file_request(download_url, name)
                 if not status:
@@ -1288,10 +1288,11 @@ class SimplyPrintComm:
         local = FileDestinations.LOCAL
 
         # Delete any old sp_* files
-        files = self.plugin._file_manager.list_files(local)
+        files = self.plugin._file_manager.list_files(local, "SimplyPrint")
         for file, data in files["local"].items():
-            if data["display"].startswith("sp_"):
-                self.plugin._file_manager.remove_file(local, data["path"])
+            # if data["display"].startswith("sp_"):
+            # assume we only upload to this folder and delete everything...
+            self.plugin._file_manager.remove_file(local, data["path"])
 
         if new_filename is None:
             new_filename = str(uuid.uuid1())
@@ -1328,7 +1329,7 @@ class SimplyPrintComm:
 
         try:
             canon_path, canon_filename = self.plugin._file_manager.canonicalize(
-                FileDestinations.LOCAL, upload.filename
+                FileDestinations.LOCAL, "SimplyPrint/{}".format(upload.filename)
             )
             future_path = self.plugin._file_manager.sanitize_path(FileDestinations.LOCAL, canon_path)
             future_filename = self.plugin._file_manager.sanitize_name(FileDestinations.LOCAL, canon_filename)
