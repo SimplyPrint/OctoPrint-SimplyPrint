@@ -4,12 +4,10 @@ import time
 
 class Monitor:
 
-	def __init__(self, network_exceptions, disk_exceptions, logger):
+	def __init__(self, logger):
 		self.__logger = logger
 		self.__init_process()
 		self.__init_children()
-		self.__network_exceptions = network_exceptions
-		self.__disk_exceptions = disk_exceptions
 
 	def __get_cpu_temp(self, temp):
 		if temp is None:
@@ -120,37 +118,6 @@ class Monitor:
 		self.__logger.debug("virtual_memory() : %r" % (virtual_memory,))
 		return virtual_memory._asdict()
 
-	def get_partitions(self, all):
-		disk_partitions = psutil.disk_partitions()
-		self.__logger.debug("disk_partitions() : %r" % (disk_partitions,))
-		partitions = [partition._asdict() for partition in disk_partitions if partition.fstype and (all or partition.mountpoint not in self.__disk_exceptions)
-									and partition.fstype not in ["squashfs"]]
-		for partition in partitions:
-			disk_usage = psutil.disk_usage(partition["mountpoint"])
-			self.__logger.debug('disk_usage(partition["mountpoint"] : %r' % (disk_usage,))
-			partition.update(disk_usage._asdict())
-		return partitions
-
-	def get_network(self, all):
-		io_counters = psutil.net_io_counters(pernic=True)
-		self.__logger.debug("net_io_counters(pernic=True) : %r" % (io_counters,))
-		addrs = psutil.net_if_addrs()
-		self.__logger.debug("net_if_addrs() : %r" % (addrs,))
-		stats = psutil.net_if_stats()
-		self.__logger.debug("net_if_stats() : %r" % (stats,))
-		final = []
-		for nic_name in io_counters:
-			if all or nic_name not in self.__network_exceptions:
-				nic = dict(
-					name=nic_name,
-					addrs=[addr._asdict() for addr in addrs[nic_name]]
-				)
-				nic.update(io_counters[nic_name]._asdict())
-				if nic_name in stats:
-					nic.update(stats[nic_name]._asdict())
-				final.append(nic)
-		return final
-
 	def get_battery(self):
 		# return dict(
 		# 	percent=94,
@@ -168,7 +135,5 @@ class Monitor:
 			cpu=self.get_cpu(),
 			temp=self.get_cpu_temp(),
 			memory=self.get_memory(),
-			partitions=self.get_partitions(all=False),
-			network=self.get_network(all=False),
 			battery=self.get_battery()
 		)

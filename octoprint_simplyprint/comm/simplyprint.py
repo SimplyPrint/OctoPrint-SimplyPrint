@@ -331,8 +331,8 @@ class SimplyPrintComm:
             if self.user_input_required:
                 url += "&userinputrequired"
             url += "&extra=" + url_quote(json.dumps(to_set))
-
-            url += "&health=" + url_quote(json.dumps(Monitor.get_all_resources()))
+            resources = Monitor(self._logger)
+            url += "&health=" + url_quote(json.dumps(resources.get_all_resources()))
 
         return self._simply_get(url)
 
