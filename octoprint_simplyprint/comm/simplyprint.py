@@ -86,6 +86,8 @@ class SimplyPrintComm:
         self.previous_printer_text = ""
         self.state_timer = None
         self.user_input_required = False
+        self.downloading = False
+        self.download_status = None
 
         self.last_connection_attempt = time.time()
         self.first = True
@@ -678,7 +680,7 @@ class SimplyPrintComm:
                 self.printer.resume_print()
 
         if "process_file" in demand_list:
-            if self.printer.is_operational():
+            if self.printer.is_operational() and not self.downloading:
                 self._set_display("Preparing...", True)
 
                 download_url = demand_list["print_file"]
@@ -689,8 +691,14 @@ class SimplyPrintComm:
 
                 name = "{}.gcode".format(name)
 
-                status = self._process_file_request(download_url, name)
-                if not status:
+                self.downloading = True
+                download_thread = threading.Thread(target=self._process_file_request, args=(download_url, name), daemon=True)
+                download_thread.start()
+                while self.downloading:
+                    self._logger.debug("still downloading {}".format(name))
+                    self.ping("&file_downloading=true&filename={}".format(name))
+                    time.sleep(5)
+                if not self.download_status:
                     if not self.printer.is_operational():
                         message = "Printer is not ready to print (state is not operational)"
                     else:
@@ -1310,10 +1318,14 @@ class SimplyPrintComm:
         except Exception as e:
             self._logger.error("Unable to download file from {}".format(download_url))
             self._logger.error(repr(e))
+            self.download_status = False
+            self.downloading = False
             return False
 
         if not response.status_code == 200:
             self._logger.error("Reponse from download URL {} was {}".format(download_url, response.status_code))
+            self.download_status = False
+            self.downloading = False
             return False
 
         # response.content currently contains the file's content in memory, now write it to a temporary file
@@ -1336,6 +1348,8 @@ class SimplyPrintComm:
         except Exception as e:
             # Most likely the file path is not valid for some reason
             self._logger.exception(e)
+            self.download_status = False
+            self.downloading = False
             return False
 
         future_full_path = self.plugin._file_manager.join_path(
@@ -1348,6 +1362,8 @@ class SimplyPrintComm:
         # Check the file is not in use by the printer (ie. currently printing)
         if not self.printer.can_modify_file(future_full_path_in_storage, False):  # args: path, is sd?
             self._logger.error("Tried to overwrite file in use")
+            self.download_status = False
+            self.downloading = False
             return False
 
         try:
@@ -1361,6 +1377,8 @@ class SimplyPrintComm:
         except octoprint.filemanager.storage.StorageError as e:
             self._logger.error("Could not upload the file {}".format(new_filename))
             self._logger.exception(e)
+            self.download_status = False
+            self.downloading = False
             return False
 
         # Select the file for printing
@@ -1391,4 +1409,6 @@ class SimplyPrintComm:
 
         # We got to the end \o/
         # Likely means everything went OK
+        self.download_status = False
+        self.downloading = False
         return True
