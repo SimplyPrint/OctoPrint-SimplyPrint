@@ -47,6 +47,7 @@ from octoprint.util.commandline import CommandlineCaller, CommandlineError
 from .constants import API_VERSION, UPDATE_URL, SIMPLYPRINT_PLUGIN_INSTALL_URL
 from .util import is_octoprint_setup, url_quote, has_internet, any_demand
 from . import webcam, startup, constants
+from .monitor import Monitor
 
 # default close_fds settings (borrowed from OctoPrint core :) )
 CLOSE_FDS = True
@@ -330,6 +331,8 @@ class SimplyPrintComm:
             if self.user_input_required:
                 url += "&userinputrequired"
             url += "&extra=" + url_quote(json.dumps(to_set))
+
+            url += "&health=" + url_quote(json.dumps(self.__monitor.get_all_resources()))
 
         return self._simply_get(url)
 
