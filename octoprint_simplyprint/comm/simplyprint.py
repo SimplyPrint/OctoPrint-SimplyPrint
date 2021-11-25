@@ -312,8 +312,11 @@ class SimplyPrintComm:
                 print_job = self.get_print_job()
                 if "completion" in print_job["progress"] and print_job["progress"]["completion"] is not None:
                     to_set["completion"] = round(float(print_job["progress"]["completion"]))
-                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"]["printTimeLeftOrigin"] == "genius":
-                    to_set["completion"] = round(float(print_job["progress"]["printTime"] or 0) / (float(print_job["progress"]["printTime"] or 0) + float(print_job["progress"]["printTimeLeft"])) * 100)
+                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"][
+                    "printTimeLeftOrigin"] == "genius":
+                    to_set["completion"] = round(float(print_job["progress"]["printTime"] or 0) / (
+                                float(print_job["progress"]["printTime"] or 0) + float(
+                            print_job["progress"]["printTimeLeft"])) * 100)
                 to_set["estimated_finish"] = print_job["progress"]["printTimeLeft"]
 
                 try:
@@ -391,7 +394,8 @@ class SimplyPrintComm:
                     self.first = False
 
                 if self._settings.get_boolean(["has_power_controller"]) and not self.has_checked_power_controller:
-                    helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+                    helpers = self.plugin._plugin_manager.get_helpers(
+                        "psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
                     if helpers:
                         if "get_psu_state" in helpers:
                             status = helpers["get_psu_state"]()
@@ -529,8 +533,11 @@ class SimplyPrintComm:
         if self.printer.is_printing():
             if self._settings.get_int(["display_while_printing_type"]) != 2:
                 print_job = self.get_print_job()
-                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"]["printTimeLeftOrigin"] == "genius":
-                    progress = float(print_job["progress"]["printTime"] or 0) / (float(print_job["progress"]["printTime"] or 0) + float(print_job["progress"]["printTimeLeft"])) * 100
+                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"][
+                    "printTimeLeftOrigin"] == "genius":
+                    progress = float(print_job["progress"]["printTime"] or 0) / (
+                                float(print_job["progress"]["printTime"] or 0) + float(
+                            print_job["progress"]["printTimeLeft"])) * 100
                 else:
                     progress = print_job["progress"]["completion"]
                 if progress is not None:
@@ -598,7 +605,8 @@ class SimplyPrintComm:
             pass
 
         if any_demand(demand_list, ["psu_on", "psu_keepalive"]):
-            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers(
+                "simplypowercontroller")
             # psucontrol plugin
             if "turn_psu_on" in helpers:
                 helpers["turn_psu_on"]()
@@ -607,7 +615,8 @@ class SimplyPrintComm:
                 helpers["psu_on"]()
 
         if "psu_off" in demand_list:
-            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers(
+                "simplypowercontroller")
             # psucontrol plugin
             if "turn_psu_off" in helpers:
                 helpers["turn_psu_off"]()
@@ -695,12 +704,16 @@ class SimplyPrintComm:
                 name = "{}.gcode".format(name)
 
                 self.downloading = True
-                download_thread = threading.Thread(target=self._process_file_request, args=(download_url, name), daemon=True)
+                download_thread = threading.Thread(target=self._process_file_request, args=(download_url, name),
+                                                   daemon=True)
                 download_thread.start()
+                # create a fake thread loop, which can be broken out of
+                internal_timer = time.time()
                 while self.downloading:
-                    self._logger.debug("still downloading {}".format(name))
-                    self.ping("&file_downloading=true&filename={}".format(name))
-                    time.sleep(5)
+                    if time.time() > (internal_timer + 5):
+                        self._logger.debug("still downloading {}".format(name))
+                        self.ping("&file_downloading=true&filename={}".format(name))
+                        internal_timer = time.time()
                 if not self.download_status:
                     if not self.printer.is_operational():
                         message = "Printer is not ready to print (state is not operational)"
@@ -1298,10 +1311,9 @@ class SimplyPrintComm:
         from octoprint.filemanager.destinations import FileDestinations
         local = FileDestinations.LOCAL
 
-        # Delete any old sp_* files
+        # Delete any old files in SimplyPrint folder
         files = self.plugin._file_manager.list_files(local, "SimplyPrint")
         for file, data in files["local"].items():
-            # if data["display"].startswith("sp_"):
             # assume we only upload to this folder and delete everything...
             self.plugin._file_manager.remove_file(local, data["path"])
 
