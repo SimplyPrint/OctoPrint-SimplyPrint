@@ -267,8 +267,37 @@ class SimplyPrint(
     #     if gcode and gcode == "M106":
     #         self._logger.info("Just sent M106: {cmd}".format(**locals()))
 
-    # def gcode_received(self, line, *args, **kwargs):
-    #     return line
+    def gcode_received(self, comm_instance, line, *args, **kwargs):
+        if line.strip() not in ["echo:busy: paused for user", "echo:busy: processing", "Unknown M code: M118 simplyprint unpause", "simplyprint unpause"]:
+            return line
+
+        if line.strip() == "echo:busy: paused for user":
+            self._logger.debug("received line: echo:busy: paused for user, setting user_input_required True")
+            self.simply_print.user_input_required = True
+            self._printer.commands("M118 simplyprint unpause", force=True)
+        if self.simply_print.user_input_required and line.strip() in ["echo:busy: processing", "Unknown M code: M118 simplyprint unpause", "simplyprint unpause"]:
+            self._logger.debug("received line: echo:busy: processing, setting user_input_required False")
+            self.simply_print.user_input_required = False
+
+        return line
+
+    def process_at_command(self, comm, phase, command, parameters, tags=None, *args, **kwargs):
+        if command.lower() not in ["simplyprint", "pause"]:
+            return
+
+        url_parameters = ""
+        if command.lower() == "pause":
+            url_parameters += "&pause_message={}".format(parameters)
+        elif command.lower() == "simplyprint":
+            if parameters:
+                parameters_list = parameters.split(" ")
+            if parameters_list[0] == "layer":
+                url_parameters += "&layer={}".format(parameters_list[1])
+
+        if url_parameters != "":
+            self.simply_print.ping(url_parameters)
+
+        return
 
     def get_update_information(self):
         return dict(
@@ -307,7 +336,7 @@ Please uninstall SimplyPrint Cloud rather than just disable it, since it sets up
 that will continue to run if you disable it.
 """
 # Remember to bump the version in setup.py as well
-__plugin_version__ = "3.0.1"
+__plugin_version__ = "3.1.2rc6"
 
 
 def __plugin_load__():
@@ -315,6 +344,7 @@ def __plugin_load__():
     __plugin_implementation__ = SimplyPrint()
     __plugin_hooks__ = {
         "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
-        # "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received,
-        # "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent,
+        "octoprint.comm.protocol.atcommand.sending": __plugin_implementation__.process_at_command,
+        "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received,
+        # "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent
     }
