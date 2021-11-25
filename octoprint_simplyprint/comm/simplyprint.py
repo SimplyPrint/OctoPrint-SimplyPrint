@@ -18,6 +18,7 @@ from __future__ import absolute_import, division, unicode_literals
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from octoprint.printer import InvalidFileLocation
 
 """
 Handle all communication to SimplyPrint servers
@@ -716,10 +717,26 @@ class SimplyPrintComm:
                         internal_timer = time.time()
                 if not self.download_status:
                     if not self.printer.is_operational():
-                        message = "Printer is not ready to print (state is not operational)"
+                        # attempt to connect 3 times, with increasing delays between each attempt.
+                        counter = 1
+                        internal_timer = time.time()
+                        while counter <= 3:
+                            if self.printer.is_ready():
+                                counter = 4
+                                self.printer.select_file("SimplyPrint/{}".format(name), False, False)
+                                internal_timer = time.time()
+                            if time.time() > (internal_timer + (5*counter)):
+                                self.printer.connect()
+                                internal_timer = time.time()
+                                counter = counter + 1
+                        if self.printer.is_ready():
+                            self.ping("&file_downloaded=true&filename={}".format(name))
+                        else:
+                            message = "Printer is not ready to print (unable to connect after multiple attempts)"
+                            self.ping("&file_downloaded=false&not_ready={}".format(message))
                     else:
                         message = "Failed to get file, check logs for details"
-                    self.ping("&file_downloaded=false&not_ready={}".format(message))
+                        self.ping("&file_downloaded=false&not_ready={}".format(message))
                 else:
                     self.ping("&file_downloaded=true&filename={}".format(name))
 
@@ -1397,11 +1414,17 @@ class SimplyPrintComm:
             return False
 
         # Select the file for printing
-        self.printer.select_file(
-            future_full_path_in_storage,
-            False,  # SD?
-            False,  # Print after select?
-        )
+        try:
+            self.printer.select_file(
+                future_full_path_in_storage,
+                False,  # SD?
+                False,  # Print after select?
+            )
+        except InvalidFileLocation:
+            self._logger.warning("Failed to select file {}".format(future_full_path_in_storage))
+            self.download_status = False
+            self.downloading = False
+            return False
 
         # Fire file uploaded event
         payload = {
