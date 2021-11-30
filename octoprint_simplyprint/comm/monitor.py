@@ -92,48 +92,23 @@ class Monitor:
 
 	def get_cpu_temp(self):
 		# return dict(
-		# 	celsius=dict(
-		# 		current=20
-		# 	),
-		# 	fahrenheit=dict(
-		# 		current=50
-		# 	)
+		#   current=20 (celsius only)
 		# )
 		temps_celsius = None
-		temps_fahrenheit = None
 		if hasattr(psutil, "sensors_temperatures"):
 			temps_celsius = psutil.sensors_temperatures()
 			self.__logger.debug("sensors_temperatures() : %r" % (temps_celsius,))
-			temps_fahrenheit = psutil.sensors_temperatures(fahrenheit=True)
-			self.__logger.debug("sensors_temperatures(fahrenheit=True) : %r" % (temps_fahrenheit,))
 		temps_c = self.__get_cpu_temp(temps_celsius)
-		temps_f = self.__get_cpu_temp(temps_fahrenheit)
-		return dict(
-			celsius=temps_c if temps_c else dict(),
-			fahrenheit=temps_f if temps_f else dict()
-		)
+		return temps_c
 
 	def get_memory(self):
 		virtual_memory = psutil.virtual_memory()
 		self.__logger.debug("virtual_memory() : %r" % (virtual_memory,))
 		return virtual_memory._asdict()
 
-	def get_battery(self):
-		# return dict(
-		# 	percent=94,
-		# 	secsleft=16628,
-		# 	power_plugged=True
-		# )
-		bat = psutil.sensors_battery()
-		self.__logger.debug("sensors_battery() : %r" % (bat,))
-		if bat:
-			return bat._asdict()
-		return dict()
-
 	def get_all_resources(self):
 		return dict(
 			cpu=self.get_cpu(),
 			temp=self.get_cpu_temp(),
 			memory=self.get_memory(),
-			battery=self.get_battery()
 		)
