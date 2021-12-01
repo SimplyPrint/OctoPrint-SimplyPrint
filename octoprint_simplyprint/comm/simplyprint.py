@@ -90,6 +90,7 @@ class SimplyPrintComm:
         self.user_input_required = False
         self.downloading = False
         self.download_status = None
+        self.health_counter = 0
 
         self.last_connection_attempt = time.time()
         self.first = True
@@ -335,8 +336,12 @@ class SimplyPrintComm:
             if self.user_input_required:
                 url += "&userinputrequired"
             url += "&extra=" + url_quote(json.dumps(to_set))
-            resources = Monitor(self._logger)
-            url += "&health=" + url_quote(json.dumps(resources.get_all_resources()))
+            if self.health_counter > 9:
+                self.health_counter = 0
+                resources = Monitor(self._logger)
+                url += "&health=" + url_quote(json.dumps(resources.get_all_resources()))
+            else:
+                self.health_counter = self.health_counter + 1
 
         return self._simply_get(url)
 
