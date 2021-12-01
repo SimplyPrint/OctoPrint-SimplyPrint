@@ -1334,10 +1334,11 @@ class SimplyPrintComm:
         local = FileDestinations.LOCAL
 
         # Delete any old files in SimplyPrint folder
-        files = self.plugin._file_manager.list_files(local, "SimplyPrint")
-        for file, data in files["local"].items():
-            # assume we only upload to this folder and delete everything...
-            self.plugin._file_manager.remove_file(local, data["path"])
+        if self.plugin._file_manager.folder_exists(local, "SimplyPrint"):
+            files = self.plugin._file_manager.list_files(local, "SimplyPrint")
+            for file, data in files["local"].items():
+                # assume we only upload to this folder and delete everything...
+                self.plugin._file_manager.remove_file(local, data["path"])
 
         if new_filename is None:
             new_filename = str(uuid.uuid1())
