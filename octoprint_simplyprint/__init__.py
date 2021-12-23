@@ -89,6 +89,7 @@ class SimplyPrint(
     octoprint.plugin.AssetPlugin,
     octoprint.plugin.EventHandlerPlugin,
     octoprint.plugin.ShutdownPlugin,
+    octoprint.plugin.BlueprintPlugin,
 ):
     _files_analyzed = []
 
@@ -258,6 +259,16 @@ class SimplyPrint(
                 except:
                     pass
 
+    # Blueprint mixin
+    @octoprint.plugin.BlueprintPlugin.route("/can_reboot", methods=["GET"])
+    def can_reboot_route(self):
+        can_reboot = self._printer.get_state_id() not in ["PRINTING", "PAUSED", "PAUSING"]
+        self._logger.debug("Is it ok to reboot? {}".format(can_reboot))
+        return flask.jsonify({"can_reboot": can_reboot})
+
+    def is_blueprint_protected(self):
+        return False
+
     # EventHandler mixin
     def on_event(self, event, payload):
         if event in SIMPLYPRINT_EVENTS:
@@ -336,7 +347,7 @@ Please uninstall SimplyPrint Cloud rather than just disable it, since it sets up
 that will continue to run if you disable it.
 """
 # Remember to bump the version in setup.py as well
-__plugin_version__ = "3.1.2rc8"
+__plugin_version__ = "3.1.2rc9"
 
 
 def __plugin_load__():
