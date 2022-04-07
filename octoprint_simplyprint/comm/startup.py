@@ -61,7 +61,7 @@ class SimplyPrintStartup:
         python_version = no_none(self.get_python_version_str())
 
         public_port = self.get_public_port()
-        if public_port and public_port != 80:
+        if public_port and public_port != "" and public_port != "80":
             ip = "{}:{}".format(ip, public_port)
 
         url = "&startup=true" \
@@ -96,17 +96,17 @@ class SimplyPrintStartup:
             return
 
     def get_wifi(self):
-        def iwgetid():
+        def iwgetid(command_path):
             try:
-                returncode, stdout, stderr = self.command_line.checked_call(["/usr/sbin/iwgetid", "-r"])
+                returncode, stdout, stderr = self.command_line.checked_call([command_path, "-r"])
             except CommandlineError:
                 raise
 
             return stdout[0].strip("\r\n")
 
-        def iwlist():
+        def iwlist(command_path):
             try:
-                returncode, stdout, stderr = self.command_line.checked_call(["/usr/sbin/iwlist", "wlan0", "scan"])
+                returncode, stdout, stderr = self.command_line.checked_call([command_path, "wlan0", "scan"])
             except CommandlineError:
                 raise
 
@@ -115,15 +115,34 @@ class SimplyPrintStartup:
                 if line.startswith("ESSID"):
                     return line.split('"')[1]
 
+        if os.path.exists("/usr/sbin/iwgetid"):
+            command_path_iwgetid = "/usr/sbin/iwgetid"
+        elif os.path.exists("/sbin/iwgetid"):
+            command_path_iwgetid = "/sbin/iwgetid"
+        else:
+            self._logger.debug("iwgetid command not found")
+            return None
+        if os.path.exists("/usr/sbin/iwlist"):
+            command_path_iwlist = "/usr/sbin/iwlist"
+        elif os.path.exists("/sbin/iwlist"):
+            command_path_iwlist = "/sbin/iwlist"
+        else:
+            self._logger.debug("iwlist command not found")
+            return None
+
         try:
-            ssid = iwgetid()
+            self._logger.debug("iwgetid found at %s" % command_path_iwgetid)
+            ssid = iwgetid(command_path_iwgetid)
+            self._logger.debug("ssid: %s" % ssid)
         except CommandlineError:
             self._logger.warning("iwgetid failed")
             ssid = None
 
         if not ssid:
             try:
-                ssid = iwlist()
+                self._logger.debug("iwlist found at %s" % command_path_iwlist)
+                ssid = iwlist(command_path_iwlist)
+                self._logger.debug("ssid: %s" % ssid)
             except CommandlineError:
                 self._logger.warning("iwlist failed, can't get SSID")
                 return None
@@ -159,4 +178,4 @@ class SimplyPrintStartup:
 
     def get_public_port(self):
         # noinspection PyProtectedMember
-        return self.simply_print._settings.get_int(["public_port"])
+        return self.simply_print._settings.get(["public_port"])

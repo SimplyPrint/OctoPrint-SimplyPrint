@@ -18,6 +18,7 @@ from __future__ import absolute_import, division, unicode_literals
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from octoprint.printer import InvalidFileLocation
 
 """
 Handle all communication to SimplyPrint servers
@@ -47,6 +48,7 @@ from octoprint.util.commandline import CommandlineCaller, CommandlineError
 from .constants import API_VERSION, UPDATE_URL, SIMPLYPRINT_PLUGIN_INSTALL_URL
 from .util import is_octoprint_setup, url_quote, has_internet, any_demand
 from . import webcam, startup, constants
+from .monitor import Monitor
 
 # default close_fds settings (borrowed from OctoPrint core :) )
 CLOSE_FDS = True
@@ -85,6 +87,10 @@ class SimplyPrintComm:
         self.has_checked_filament_sensor = False
         self.previous_printer_text = ""
         self.state_timer = None
+        self.user_input_required = False
+        self.downloading = False
+        self.download_status = None
+        self.health_counter = 0
 
         self.last_connection_attempt = time.time()
         self.first = True
@@ -303,14 +309,16 @@ class SimplyPrintComm:
                     self.printer.is_printing()
                     or self.printer.is_cancelling()
                     or self.printer.is_pausing()
-                    or self.printer.is_pausing()
                     or self.printer.is_paused()
             ):
                 print_job = self.get_print_job()
                 if "completion" in print_job["progress"] and print_job["progress"]["completion"] is not None:
                     to_set["completion"] = round(float(print_job["progress"]["completion"]))
-                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"]["printTimeLeftOrigin"] == "genius":
-                    to_set["completion"] = round(float(print_job["progress"]["printTime"] or 0) / (float(print_job["progress"]["printTime"] or 0) + float(print_job["progress"]["printTimeLeft"])) * 100)
+                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"][
+                    "printTimeLeftOrigin"] == "genius":
+                    to_set["completion"] = round(float(print_job["progress"]["printTime"] or 0) / (
+                                float(print_job["progress"]["printTime"] or 0) + float(
+                            print_job["progress"]["printTimeLeft"])) * 100)
                 to_set["estimated_finish"] = print_job["progress"]["printTimeLeft"]
 
                 try:
@@ -324,7 +332,16 @@ class SimplyPrintComm:
 
             url += "&custom_sys_version=" + str(self.plugin._plugin_version)
 
-            url += "&pstatus=" + printer_state + "&extra=" + url_quote(json.dumps(to_set))
+            url += "&pstatus=" + printer_state
+            if self.user_input_required:
+                url += "&userinputrequired"
+            url += "&extra=" + url_quote(json.dumps(to_set))
+            if self.health_counter > 9:
+                self.health_counter = 0
+                resources = Monitor(self._logger)
+                url += "&health=" + url_quote(json.dumps(resources.get_all_resources()))
+            else:
+                self.health_counter = self.health_counter + 1
 
         return self._simply_get(url)
 
@@ -340,6 +357,8 @@ class SimplyPrintComm:
             result.update({"sd": {"ready": self.printer.is_sd_ready()}})
 
         result.update({"state": self.printer.get_current_data()["state"]})
+        if self.user_input_required and self.printer.is_printing():
+            result.update({"state": {"text": "Paused", "flags": {"paused": True}}})
 
         return result
 
@@ -381,7 +400,8 @@ class SimplyPrintComm:
                     self.first = False
 
                 if self._settings.get_boolean(["has_power_controller"]) and not self.has_checked_power_controller:
-                    helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+                    helpers = self.plugin._plugin_manager.get_helpers(
+                        "psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
                     if helpers:
                         if "get_psu_state" in helpers:
                             status = helpers["get_psu_state"]()
@@ -519,8 +539,11 @@ class SimplyPrintComm:
         if self.printer.is_printing():
             if self._settings.get_int(["display_while_printing_type"]) != 2:
                 print_job = self.get_print_job()
-                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"]["printTimeLeftOrigin"] == "genius":
-                    progress = float(print_job["progress"]["printTime"] or 0) / (float(print_job["progress"]["printTime"] or 0) + float(print_job["progress"]["printTimeLeft"])) * 100
+                if "printTimeLeftOrigin" in print_job["progress"] and print_job["progress"][
+                    "printTimeLeftOrigin"] == "genius":
+                    progress = float(print_job["progress"]["printTime"] or 0) / (
+                                float(print_job["progress"]["printTime"] or 0) + float(
+                            print_job["progress"]["printTimeLeft"])) * 100
                 else:
                     progress = print_job["progress"]["completion"]
                 if progress is not None:
@@ -588,7 +611,8 @@ class SimplyPrintComm:
             pass
 
         if any_demand(demand_list, ["psu_on", "psu_keepalive"]):
-            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers(
+                "simplypowercontroller")
             # psucontrol plugin
             if "turn_psu_on" in helpers:
                 helpers["turn_psu_on"]()
@@ -597,7 +621,8 @@ class SimplyPrintComm:
                 helpers["psu_on"]()
 
         if "psu_off" in demand_list:
-            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers("simplypowercontroller")
+            helpers = self.plugin._plugin_manager.get_helpers("psucontrol") or self.plugin._plugin_manager.get_helpers(
+                "simplypowercontroller")
             # psucontrol plugin
             if "turn_psu_off" in helpers:
                 helpers["turn_psu_off"]()
@@ -673,7 +698,7 @@ class SimplyPrintComm:
                 self.printer.resume_print()
 
         if "process_file" in demand_list:
-            if self.printer.is_operational():
+            if self.printer.is_operational() and not self.downloading:
                 self._set_display("Preparing...", True)
 
                 download_url = demand_list["print_file"]
@@ -682,15 +707,41 @@ class SimplyPrintComm:
                 else:
                     name = str(uuid.uuid1())
 
-                name = "sp_{}.gcode".format(name)
+                name = "{}.gcode".format(name)
 
-                status = self._process_file_request(download_url, name)
-                if not status:
+                self.downloading = True
+                download_thread = threading.Thread(target=self._process_file_request, args=(download_url, name),
+                                                   daemon=True)
+                download_thread.start()
+                # create a fake thread loop, which can be broken out of
+                internal_timer = time.time()
+                while self.downloading:
+                    if time.time() > (internal_timer + 5):
+                        self._logger.debug("still downloading {}".format(name))
+                        self.ping("&file_downloading=true&filename={}".format(name))
+                        internal_timer = time.time()
+                if not self.download_status:
                     if not self.printer.is_operational():
-                        message = "Printer is not ready to print (state is not operational)"
+                        # attempt to connect 3 times, with increasing delays between each attempt.
+                        counter = 1
+                        internal_timer = time.time()
+                        while counter <= 3:
+                            if self.printer.is_ready():
+                                counter = 4
+                                self.printer.select_file("SimplyPrint/{}".format(name), False, False)
+                                internal_timer = time.time()
+                            if time.time() > (internal_timer + (5*counter)):
+                                self.printer.connect()
+                                internal_timer = time.time()
+                                counter = counter + 1
+                        if self.printer.is_ready():
+                            self.ping("&file_downloaded=true&filename={}".format(name))
+                        else:
+                            message = "Printer is not ready to print (unable to connect after multiple attempts)"
+                            self.ping("&file_downloaded=false&not_ready={}".format(message))
                     else:
                         message = "Failed to get file, check logs for details"
-                    self.ping("&file_downloaded=false&not_ready={}".format(message))
+                        self.ping("&file_downloaded=false&not_ready={}".format(message))
                 else:
                     self.ping("&file_downloaded=true&filename={}".format(name))
 
@@ -1282,10 +1333,11 @@ class SimplyPrintComm:
         from octoprint.filemanager.destinations import FileDestinations
         local = FileDestinations.LOCAL
 
-        # Delete any old sp_* files
-        files = self.plugin._file_manager.list_files(local)
-        for file, data in files["local"].items():
-            if data["display"].startswith("sp_"):
+        # Delete any old files in SimplyPrint folder
+        if self.plugin._file_manager.folder_exists(local, "SimplyPrint"):
+            files = self.plugin._file_manager.list_files(local, "SimplyPrint")
+            for file, data in files["local"].items():
+                # assume we only upload to this folder and delete everything...
                 self.plugin._file_manager.remove_file(local, data["path"])
 
         if new_filename is None:
@@ -1304,10 +1356,14 @@ class SimplyPrintComm:
         except Exception as e:
             self._logger.error("Unable to download file from {}".format(download_url))
             self._logger.error(repr(e))
+            self.download_status = False
+            self.downloading = False
             return False
 
         if not response.status_code == 200:
             self._logger.error("Reponse from download URL {} was {}".format(download_url, response.status_code))
+            self.download_status = False
+            self.downloading = False
             return False
 
         # response.content currently contains the file's content in memory, now write it to a temporary file
@@ -1323,13 +1379,15 @@ class SimplyPrintComm:
 
         try:
             canon_path, canon_filename = self.plugin._file_manager.canonicalize(
-                FileDestinations.LOCAL, upload.filename
+                FileDestinations.LOCAL, "SimplyPrint/{}".format(upload.filename)
             )
             future_path = self.plugin._file_manager.sanitize_path(FileDestinations.LOCAL, canon_path)
             future_filename = self.plugin._file_manager.sanitize_name(FileDestinations.LOCAL, canon_filename)
         except Exception as e:
             # Most likely the file path is not valid for some reason
             self._logger.exception(e)
+            self.download_status = False
+            self.downloading = False
             return False
 
         future_full_path = self.plugin._file_manager.join_path(
@@ -1342,6 +1400,8 @@ class SimplyPrintComm:
         # Check the file is not in use by the printer (ie. currently printing)
         if not self.printer.can_modify_file(future_full_path_in_storage, False):  # args: path, is sd?
             self._logger.error("Tried to overwrite file in use")
+            self.download_status = False
+            self.downloading = False
             return False
 
         try:
@@ -1355,14 +1415,22 @@ class SimplyPrintComm:
         except octoprint.filemanager.storage.StorageError as e:
             self._logger.error("Could not upload the file {}".format(new_filename))
             self._logger.exception(e)
+            self.download_status = False
+            self.downloading = False
             return False
 
         # Select the file for printing
-        self.printer.select_file(
-            future_full_path_in_storage,
-            False,  # SD?
-            False,  # Print after select?
-        )
+        try:
+            self.printer.select_file(
+                future_full_path_in_storage,
+                False,  # SD?
+                False,  # Print after select?
+            )
+        except InvalidFileLocation:
+            self._logger.warning("Failed to select file {}".format(future_full_path_in_storage))
+            self.download_status = False
+            self.downloading = False
+            return False
 
         # Fire file uploaded event
         payload = {
@@ -1385,4 +1453,6 @@ class SimplyPrintComm:
 
         # We got to the end \o/
         # Likely means everything went OK
+        self.download_status = False
+        self.downloading = False
         return True
