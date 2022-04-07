@@ -347,7 +347,7 @@ Please uninstall SimplyPrint Cloud rather than just disable it, since it sets up
 that will continue to run if you disable it.
 """
 # Remember to bump the version in setup.py as well
-__plugin_version__ = "3.1.2rc9"
+__plugin_version__ = "3.1.2"
 
 
 def __plugin_load__():
