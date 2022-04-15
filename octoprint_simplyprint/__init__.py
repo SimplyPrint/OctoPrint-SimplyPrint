@@ -29,10 +29,13 @@ from octoprint.events import Events
 import octoprint.plugin
 import octoprint.settings
 
+from octoprint_simplyprint.websocket import SimplyPrintWebsocket
 from octoprint_simplyprint.comm import SimplyPrintComm
 from octoprint_simplyprint.local import cron
 
 SIMPLYPRINT_EVENTS = [
+    Events.PRINTER_STATE_CHANGED,
+    Events.TOOL_CHANGE,
     Events.CONNECTING,
     Events.CONNECTED,
     Events.DISCONNECTING,
@@ -100,12 +103,18 @@ class SimplyPrint(
 
     def initialize(self):
         # Called once the plugin has been loaded by OctoPrint, all injections complete
-        self.simply_print = SimplyPrintComm(self)
+        if self._settings.get_boolean(["websocket_ready"]):
+            self.simply_print = SimplyPrintWebsocket(self)
+        else:
+            self.simply_print = SimplyPrintComm(self)
 
     def on_startup(self, host, port):
         # Run startup thread and run the main loop in the background
-        self.simply_print.start_startup()
-        self.simply_print.start_main_loop()
+        if isinstance(self.simply_print, SimplyPrintComm):
+            self.simply_print.start_startup()
+            self.simply_print.start_main_loop()
+        else:
+            self.simply_print.on_startup()
 
         self.host = host
         # Remember that this port is internal to OctoPrint, a proxy may exist.
@@ -119,22 +128,32 @@ class SimplyPrint(
         self._logger.info("Host is; " + str(host) + " and port is; " + str(port))
         self.send_port_ip(None, ip)
 
+    def notify_websocket_ready(self):
+        self._settings.set_boolean(["websocket_ready"], True)
+        self._settings.save()
+        # TODO: send notification popup to restart octoprint
+
     # #~~ StartupPlugin mixin
     def on_after_startup(self):
 
         self._logger.info("SimplyPrint OctoPrint plugin started")
 
         # If cron jobs don't exist, create them
-        if not cron.check_cron_jobs():
+        if (
+            isinstance(self.simply_print, SimplyPrintComm)
+            and not cron.check_cron_jobs()
+        ):
             cron.create_cron_jobs()
 
         # The "Startup" event is never picked up by the plugin, as the plugin is loaded AFTER startup
         self.on_event("Startup", {})
 
     def on_shutdown(self):
-        if self.simply_print is not None:
+        if isinstance(self.simply_print, SimplyPrintComm):
             # SimplyPrintComm will stop on next loop
             self.simply_print.run_loop = False
+        elif self.simply_print is not None:
+            self.simply_print.close()
 
     @staticmethod
     def get_settings_defaults():
@@ -163,7 +182,12 @@ class SimplyPrint(
                 "gcode_scripts_backed_up": False,
             },
             "debug_logging": False,
-            "public_port": "80"
+            "public_port": "80",
+            # Websocket Default Settings
+            "websocket_ready": False,
+            "endpoint": "production",
+            "printer_token": "",
+            "ambient_temp": "85",
         }
 
     def get_template_vars(self):
@@ -199,6 +223,8 @@ class SimplyPrint(
             cron.create_cron_jobs()
 
     def on_api_command(self, command, data):
+        if isinstance(self.simply_print, SimplyPrintWebsocket):
+            return
         if command == "setup":
             self._uninstall_sp()
         elif command == "uninstall":
@@ -296,6 +322,21 @@ class SimplyPrint(
         if command.lower() not in ["simplyprint", "pause"]:
             return
 
+        if isinstance(self.simply_print, SimplyPrintWebsocket):
+            cmd = command.lower()
+            if cmd == "pause":
+                self.simply_print.on_pause_at_command(parameters)
+            elif cmd == "simplyprint":
+                params = parameters.strip().split(" ")
+                if params and params[0] ==  "layer":
+                    try:
+                        layer = int(params[1])
+                    except Exception:
+                        pass
+                    else:
+                        self.simply_print.on_layer_change(layer)
+            return
+
         url_parameters = ""
         if command.lower() == "pause":
             url_parameters += "&pause_message={}".format(parameters)
@@ -341,13 +382,13 @@ class SimplyPrint(
 
 
 __plugin_name__ = "SimplyPrint Cloud"
-__plugin_pythoncompat__ = ">=2.7,<4"
+__plugin_pythoncompat__ = ">=3.7,<4"
 __plugin_disabling_discouraged__ = """
 Please uninstall SimplyPrint Cloud rather than just disable it, since it sets up some background scripts
 that will continue to run if you disable it.
 """
 # Remember to bump the version in setup.py as well
-__plugin_version__ = "3.1.2"
+__plugin_version__ = "4.0.0"
 
 
 def __plugin_load__():
