@@ -300,9 +300,17 @@ class SimplyPrint(
         if event in SIMPLYPRINT_EVENTS:
             self.simply_print.on_event(event, payload)
 
-    # def gcode_sent(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
-    #     if gcode and gcode == "M106":
-    #         self._logger.info("Just sent M106: {cmd}".format(**locals()))
+    def gcode_sent(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
+        # if gcode and gcode == "M106":
+        #     self._logger.info("Just sent M106: {cmd}".format(**locals()))
+        tags = kwargs.get("tags", [])
+        if tags is None:
+            return
+        if (
+            ("source:api" in tags or "plugin:octoprint_simplyprint" in tags) and
+            isinstance(self.simply_print, SimplyPrintWebsocket)
+        ):
+            self.simply_print.on_gcode_sent(cmd)
 
     def gcode_received(self, comm_instance, line, *args, **kwargs):
         if line.strip() not in ["echo:busy: paused for user", "echo:busy: processing", "Unknown M code: M118 simplyprint unpause", "simplyprint unpause"]:
@@ -315,6 +323,9 @@ class SimplyPrint(
         if self.simply_print.user_input_required and line.strip() in ["echo:busy: processing", "Unknown M code: M118 simplyprint unpause", "simplyprint unpause"]:
             self._logger.debug("received line: echo:busy: processing, setting user_input_required False")
             self.simply_print.user_input_required = False
+
+        if isinstance(self.simply_print, SimplyPrintWebsocket):
+            self.simply_print.on_gcode_received(line)
 
         return line
 
@@ -398,5 +409,5 @@ def __plugin_load__():
         "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
         "octoprint.comm.protocol.atcommand.sending": __plugin_implementation__.process_at_command,
         "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received,
-        # "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent
+        "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent
     }
