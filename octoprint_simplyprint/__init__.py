@@ -24,6 +24,7 @@ import threading
 
 # noinspection PyPackageRequirements
 import flask
+from tornado.ioloop import IOLoop
 
 from octoprint.events import Events
 import octoprint.plugin
@@ -103,12 +104,18 @@ class SimplyPrint(
 
     def initialize(self):
         # Called once the plugin has been loaded by OctoPrint, all injections complete
+        sp_cls = SimplyPrintComm
         if self._settings.get_boolean(["websocket_ready"]):
-            self.simply_print = SimplyPrintWebsocket(self)
-        else:
-            self.simply_print = SimplyPrintComm(self)
+            sp_cls = SimplyPrintWebsocket
+        elif not self._settings.get_boolean(["is_set_up"]):
+            # If not setup default new accounts to the websocket
+            sp_cls = SimplyPrintWebsocket
+            self._settings.set_boolean(["websocket_ready"], True)
+            self._settings.save()
+        self.simply_print = sp_cls(self)
 
     def on_startup(self, host, port):
+        self._loop = IOLoop.current()
         # Run startup thread and run the main loop in the background
         if isinstance(self.simply_print, SimplyPrintComm):
             self.simply_print.start_startup()
@@ -129,9 +136,11 @@ class SimplyPrint(
         self.send_port_ip(None, ip)
 
     def notify_websocket_ready(self):
+        cron.remove_cron_jobs()
         self._settings.set_boolean(["websocket_ready"], True)
         self._settings.save()
-        # TODO: send notification popup to restart octoprint
+        self.simply_print = SimplyPrintWebsocket(self)
+        self._loop.add_callback(self.simply_print.on_startup)
 
     # #~~ StartupPlugin mixin
     def on_after_startup(self):

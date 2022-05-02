@@ -137,6 +137,8 @@ class SimplyPrintComm:
                 self._logger.info("SimplyPrint Websocket detected, making switch...")
                 self.next_check_websocket = start_time + 999999999.
                 self.plugin.notify_websocket_ready()
+                self.run_loop = False
+                break
 
             # Check for update will only run each day
             self.update_check()
