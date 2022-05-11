@@ -219,6 +219,7 @@ class SimplyPrint(
         return {
             "setup": [],  # Sets up SimplyPrintRPiSoftware
             "uninstall": [],  # Uninstalls SimplyPrintRPiSoftware
+            "message": ["payload"], # Inject websocket messages
         }
 
     @staticmethod
@@ -233,6 +234,11 @@ class SimplyPrint(
 
     def on_api_command(self, command, data):
         if isinstance(self.simply_print, SimplyPrintWebsocket):
+            if command == "message" and self.simply_print.test:
+                msg = json.dumps(data["payload"])
+                # Generally we do NOT want to access methods marked
+                # as private, however this is for testing only
+                self.simply_print._process_message(msg)
             return
         if command == "setup":
             self._uninstall_sp()
