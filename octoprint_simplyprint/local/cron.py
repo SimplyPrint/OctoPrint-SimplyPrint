@@ -87,7 +87,7 @@ class CronManager:
 
     def remove(self, comment):
         for job in self.cron:
-            if comment.lower() == job.comment().lower():
+            if comment.lower() == job.comment.lower():
                 self.cron.remove(job)
 
 
