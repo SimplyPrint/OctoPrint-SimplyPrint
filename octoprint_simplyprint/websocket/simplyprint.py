@@ -70,6 +70,10 @@ VALID_STATES= [
     "offline",  "operational", "printing", "cancelling",
     "pausing", "paused", "resuming", "error"
 ]
+PRE_SETUP_EVENTS = [
+    "connection", "state_change", "shutdown", "machine_data", "keepalive",
+    "firmware"
+]
 
 class SimplyPrintWebsocket:
     def __init__(self, plugin: SimplyPrint) -> None:
@@ -953,7 +957,7 @@ class SimplyPrintWebsocket:
                 temp_data[heater] = ret
             self.last_received_temps[heater] = reported_temp
             self.cache.temps[heater] = ret
-        if temp_data and self.is_set_up:
+        if temp_data:
             self.send_sp("temps", temp_data)
         interval = self.intervals["temps"]
         if need_rapid_update:
@@ -1086,7 +1090,7 @@ class SimplyPrintWebsocket:
         # simplyprint.  It might be better for SP to request it
         # rather than for the client to send it on every connection.
         self.send_sp("state_change", {"new": self.cache.state})
-        if self.cache.temps and self.is_set_up:
+        if self.cache.temps:
             self.send_sp("temps", self.cache.temps)
         if self.cache.firmware_info:
             self.send_sp("firmware", self.cache.firmware_info)
@@ -1112,8 +1116,15 @@ class SimplyPrintWebsocket:
             "webcam_status", {"connected": self.webcam_stream.webcam_connected}
         )
 
+    def _check_setup_event(self, evt_name: str) -> bool:
+        return self.is_set_up or evt_name in PRE_SETUP_EVENTS
+
     def send_sp(self, evt_name: str, data: Any) -> asyncio.Future:
-        if not self.connected or self.ws is None:
+        if (
+            not self.connected or
+            self.ws is None or
+            not self._check_setup_event(evt_name)
+        ):
             fut = self._aioloop.create_future()
             fut.set_result(False)
             return fut
