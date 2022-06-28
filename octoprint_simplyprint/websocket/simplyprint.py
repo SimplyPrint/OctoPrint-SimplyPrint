@@ -36,6 +36,7 @@ from octoprint.plugin import PluginSettings
 from octoprint.printer import PrinterInterface
 from octoprint.filemanager import FileManager
 from octoprint.events import Events
+import requests
 
 # XXX: The below imports are for inital dev and
 # debugging.  They are used to create a logger for
@@ -102,7 +103,8 @@ class SimplyPrintWebsocket:
             "temps": 5.,
             "temps_target": 2.5,
             "cpu": 30.,
-            "reconnect": 0
+            "reconnect": 0,
+            "ai": 60.
         }
         self.temp_timer = FlexTimer(self._handle_temperature_update)
         self.job_info_timer = FlexTimer(self._handle_job_info_update)
@@ -112,6 +114,7 @@ class SimplyPrintWebsocket:
         self.monitor = Monitor(
             logging.getLogger("octoprint.plugins.simplyprint.monitor")
         )
+        self.ai_timer = FlexTimer(self._handle_ai_snapshot)
         self.webcam_stream = WebcamStream(self.settings, self._send_image)
         self.amb_detect = AmbientDetect(
             self.cache, self._on_ambient_changed,
@@ -801,6 +804,7 @@ class SimplyPrintWebsocket:
         self.job_info_timer.start()
         self._send_job_event(job_info)
         self.set_display_message("Printing...", True)
+        self.ai_timer.start(delay=120.)
 
     def _on_print_paused(self) -> None:
         self.job_info_timer.stop()
@@ -818,6 +822,7 @@ class SimplyPrintWebsocket:
         self._send_job_event({job_state: True})
         self.cache.job_info = {}
         self.current_layer = -1
+        self.ai_timer.stop()
 
     def _on_metadata_update(self, payload: Dict[str, Any]) -> None:
         if (
@@ -982,6 +987,19 @@ class SimplyPrintWebsocket:
             self.cache.updates = updates
             self.send_sp("software_updates", {"available": updates})
         return eventtime + UPDATE_CHECK_TIME
+
+    def _handle_ai_snapshot(self, eventtime: float) -> float:
+        ai_interval = self.intervals.get("ai", 0)
+        if ai_interval > 0 and self.webcam_stream.webcam_connected:
+            img_data = self.webcam_stream.extract_image()
+            headers = {"User-Agent": "Mozilla/5.0"}
+            data = json.dumps({"api_key": self.settings.get(["printer_token"]), "image_array": img_data, "interval": ai_interval}).encode('utf8')
+            response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers)
+            self.send_sp("ai_resp", response.json())
+            self.ai_timer.start(delay=ai_interval)
+        elif ai_interval == 0:
+            self.ai_timer.stop()
+        return eventtime + ai_interval
 
     def _update_state_from_octo(self) -> None:
         state: str = self.printer.get_state_id()  # type: ignore
@@ -1191,6 +1209,7 @@ class SimplyPrintWebsocket:
         self.temp_timer.stop()
         self.job_info_timer.stop()
         self.cpu_timer.stop()
+        self.ai_timer.stop()
         self.printer_reconnect_timer.stop()
         self.update_timer.stop()
         self.is_closing = True
