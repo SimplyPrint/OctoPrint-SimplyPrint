@@ -119,6 +119,7 @@ class SimplyPrintWebsocket:
             logging.getLogger("octoprint.plugins.simplyprint.monitor")
         )
         self.ai_timer = FlexTimer(self._handle_ai_snapshot)
+        self.reset_printer_display_timer = FlexTimer(self._reset_printer_display)
         self.webcam_stream = WebcamStream(self.settings, self._send_image)
         self.amb_detect = AmbientDetect(
             self.cache, self._on_ambient_changed,
@@ -329,6 +330,7 @@ class SimplyPrintWebsocket:
                 failed_attempts += 1
                 if not failed_attempts % 10:
                     self.set_display_message("Can't reach SP", True)
+                    self.reset_printer_display_timer.start(delay=120)
             else:
                 if failed_attempts:
                     self.set_display_message("Back online!", True)
@@ -771,6 +773,7 @@ class SimplyPrintWebsocket:
         self.temp_timer.stop()
         self.job_info_timer.stop()
         self.webcam_stream.stop()
+        self.ai_timer.stop()
         self.cache.reset_print_state()
         self._start_printer_reconnect()
 
@@ -1170,6 +1173,11 @@ class SimplyPrintWebsocket:
             prefix = "[SP] " if short_branding else "[SimplyPrint] "
             message = prefix + message
         self.printer.commands(f"M117 {message}")
+
+    def _reset_printer_display(self, eventtime: float) -> float:
+        if self.is_connected:
+            self.printer.commands("M117")
+        return eventtime
 
     def _reset_keepalive(self):
         if self.keepalive_hdl is not None:
