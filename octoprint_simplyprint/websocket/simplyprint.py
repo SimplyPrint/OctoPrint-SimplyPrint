@@ -37,6 +37,7 @@ from octoprint.printer import PrinterInterface
 from octoprint.filemanager import FileManager
 from octoprint.events import Events
 import requests
+import datetime
 
 # XXX: The below imports are for inital dev and
 # debugging.  They are used to create a logger for
@@ -108,7 +109,8 @@ class SimplyPrintWebsocket:
             "temps_target": 2.5,
             "cpu": 30.,
             "reconnect": 0,
-            "ai": 60.
+            "ai": 60.,
+            "ready_message": 60.
         }
         self.temp_timer = FlexTimer(self._handle_temperature_update)
         self.job_info_timer = FlexTimer(self._handle_job_info_update)
@@ -722,7 +724,7 @@ class SimplyPrintWebsocket:
 
     async def _test_webcam(self) -> None:
         await self.webcam_stream.test_connection()
-        self.send_sp(
+        await self.send_sp(
             "webcam_status", {"connected": self.webcam_stream.webcam_connected}
         )
 
@@ -760,7 +762,7 @@ class SimplyPrintWebsocket:
         elif self.printer.is_operational():
             self._update_state("operational")
             if self.settings.get_boolean(["display_show_status"]):
-                self.set_display_message("Ready")
+                self.reset_printer_display_timer.start()
         self.temp_timer.start()
         self.amb_detect.start()
         self.printer_reconnect_timer.stop()
@@ -774,6 +776,7 @@ class SimplyPrintWebsocket:
         self.job_info_timer.stop()
         self.webcam_stream.stop()
         self.ai_timer.stop()
+        self.reset_printer_display_timer.stop()
         self.cache.reset_print_state()
         self._start_printer_reconnect()
 
@@ -812,6 +815,7 @@ class SimplyPrintWebsocket:
         self._send_job_event(job_info)
         self.set_display_message("Printing...", True)
         self.ai_timer.start(delay=120.)
+        self.reset_printer_display_timer.stop()
 
     def _on_print_paused(self) -> None:
         self.job_info_timer.stop()
@@ -826,10 +830,11 @@ class SimplyPrintWebsocket:
 
     def _on_print_done(self, job_state: str) -> None:
         self.job_info_timer.stop()
+        self.ai_timer.stop()
+        self.reset_printer_display_timer.start()
         self._send_job_event({job_state: True})
         self.cache.job_info = {}
         self.current_layer = -1
-        self.ai_timer.stop()
 
     def _on_metadata_update(self, payload: Dict[str, Any]) -> None:
         if (
@@ -880,7 +885,7 @@ class SimplyPrintWebsocket:
         diff = self._get_object_diff(cpu_data, self.cache.cpu_info)
         if diff:
             self.cache.cpu_info.update(cpu_data)
-            self.send_sp("cpu", diff)
+            await self.send_sp("cpu", diff)
         return eventtime + self.intervals["cpu"]
 
     def _on_cpu_throttled(self, payload: Dict[str, Any]):
@@ -906,6 +911,9 @@ class SimplyPrintWebsocket:
                 time_left != last_time_left
             ):
                 job_info["time"] = time_left
+                if self.settings.get_int(["display_while_printing_type"]) == 2:
+                    remaining_time = str(datetime.timedelta(seconds=time_left))
+                    self.set_display_message(f"Time Remaining: {remaining_time}")
             if progress.get("PrintTimeLeftOrigin", "") == "genius":
                 ptime = progress.get("printTime", 0)
                 total = ptime + time_left
@@ -917,7 +925,8 @@ class SimplyPrintWebsocket:
             pct_done != self.cache.job_info.get("progress", 0)
         ):
             job_info["progress"] = pct_done
-            self.set_display_message(f"Printing {pct_done}%", True)
+            if self.settings.get_int(["display_while_printing_type"]) == 1:
+                self.set_display_message(f"Printing {pct_done}%")
         layer = self.current_layer
         if layer != self.cache.job_info.get("layer", -1):
             job_info["layer"] = layer
@@ -992,18 +1001,17 @@ class SimplyPrintWebsocket:
         )
         if updates != self.cache.updates:
             self.cache.updates = updates
-            self.send_sp("software_updates", {"available": updates})
+            await self.send_sp("software_updates", {"available": updates})
         return eventtime + UPDATE_CHECK_TIME
 
-    def _handle_ai_snapshot(self, eventtime: float) -> float:
+    async def _handle_ai_snapshot(self, eventtime: float) -> float:
         ai_interval = self.intervals.get("ai", 0)
         if ai_interval > 0 and self.webcam_stream.webcam_connected:
             img_data = self.webcam_stream.extract_image()
             headers = {"User-Agent": "Mozilla/5.0"}
             data = json.dumps({"api_key": self.settings.get(["printer_token"]), "image_array": img_data, "interval": ai_interval}).encode('utf8')
             response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers)
-            self.send_sp("ai_resp", response.json())
-            self.ai_timer.start(delay=ai_interval)
+            await self.send_sp("ai_resp", response.json())
         elif ai_interval == 0:
             self.ai_timer.stop()
         return eventtime + ai_interval
@@ -1175,9 +1183,11 @@ class SimplyPrintWebsocket:
         self.printer.commands(f"M117 {message}")
 
     def _reset_printer_display(self, eventtime: float) -> float:
-        if self.is_connected:
-            self.printer.commands("M117")
-        return eventtime
+        if self.settings.get_boolean(["display_show_status"]) is False:
+            self.reset_printer_display_timer.stop()
+        if self.is_connected and not self.printer.is_printing():
+            self.set_display_message(f"Ready")
+        return eventtime + self.intervals.get("ready_message", 60.)
 
     def _reset_keepalive(self):
         if self.keepalive_hdl is not None:
