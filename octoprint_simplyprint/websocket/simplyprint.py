@@ -1187,7 +1187,7 @@ class SimplyPrintWebsocket:
         if self.settings.get_boolean(["display_show_status"]) is False:
             self.reset_printer_display_timer.stop()
         if self.is_connected and not self.printer.is_printing():
-            self.set_display_message(f"Ready")
+            self.set_display_message(f"Ready", True)
         return eventtime + self.intervals.get("ready_message", 60.)
 
     def _reset_keepalive(self):
