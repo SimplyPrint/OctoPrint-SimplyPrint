@@ -835,6 +835,7 @@ class SimplyPrintWebsocket:
         self._send_job_event({job_state: True})
         self.cache.job_info = {}
         self.current_layer = -1
+        self.set_display_message("Print Complete", True)
 
     def _on_metadata_update(self, payload: Dict[str, Any]) -> None:
         if (
