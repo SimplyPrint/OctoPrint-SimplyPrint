@@ -913,7 +913,7 @@ class SimplyPrintWebsocket:
                 job_info["time"] = time_left
                 if self.settings.get_int(["display_while_printing_type"]) == 2:
                     remaining_time = str(datetime.timedelta(seconds=time_left))
-                    self.set_display_message(f"Time Remaining: {remaining_time}")
+                    self.set_display_message(f"Time Remaining: {remaining_time}", True)
             if progress.get("PrintTimeLeftOrigin", "") == "genius":
                 ptime = progress.get("printTime", 0)
                 total = ptime + time_left
@@ -926,7 +926,7 @@ class SimplyPrintWebsocket:
         ):
             job_info["progress"] = pct_done
             if self.settings.get_int(["display_while_printing_type"]) == 1:
-                self.set_display_message(f"Printing {pct_done}%")
+                self.set_display_message(f"Printing {pct_done}%", True)
         layer = self.current_layer
         if layer != self.cache.job_info.get("layer", -1):
             job_info["layer"] = layer
