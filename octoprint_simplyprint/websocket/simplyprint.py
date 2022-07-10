@@ -724,7 +724,7 @@ class SimplyPrintWebsocket:
 
     async def _test_webcam(self) -> None:
         await self.webcam_stream.test_connection()
-        await self.send_sp(
+        self.send_sp(
             "webcam_status", {"connected": self.webcam_stream.webcam_connected}
         )
 
@@ -886,7 +886,7 @@ class SimplyPrintWebsocket:
         diff = self._get_object_diff(cpu_data, self.cache.cpu_info)
         if diff:
             self.cache.cpu_info.update(cpu_data)
-            await self.send_sp("cpu", diff)
+            self.send_sp("cpu", diff)
         return eventtime + self.intervals["cpu"]
 
     def _on_cpu_throttled(self, payload: Dict[str, Any]):
@@ -1002,7 +1002,7 @@ class SimplyPrintWebsocket:
         )
         if updates != self.cache.updates:
             self.cache.updates = updates
-            await self.send_sp("software_updates", {"available": updates})
+            self.send_sp("software_updates", {"available": updates})
         return eventtime + UPDATE_CHECK_TIME
 
     async def _handle_ai_snapshot(self, eventtime: float) -> float:
@@ -1012,7 +1012,7 @@ class SimplyPrintWebsocket:
             headers = {"User-Agent": "Mozilla/5.0"}
             data = json.dumps({"api_key": self.settings.get(["printer_token"]), "image_array": img_data, "interval": ai_interval}).encode('utf8')
             response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers)
-            await self.send_sp("ai_resp", response.json())
+            self.send_sp("ai_resp", response.json())
         elif ai_interval == 0:
             self.ai_timer.stop()
         return eventtime + ai_interval
