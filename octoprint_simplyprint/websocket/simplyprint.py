@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 import asyncio
+import functools
 import json
 import pathlib
 import logging
@@ -1008,10 +1009,10 @@ class SimplyPrintWebsocket:
     async def _handle_ai_snapshot(self, eventtime: float) -> float:
         ai_interval = self.intervals.get("ai", 0)
         if ai_interval > 0 and self.webcam_stream.webcam_connected:
-            img_data = self.webcam_stream.extract_image()
+            img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
             headers = {"User-Agent": "Mozilla/5.0"}
             data = json.dumps({"api_key": self.settings.get(["printer_token"]), "image_array": img_data, "interval": ai_interval}).encode('utf8')
-            response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers)
+            response = await self._loop.run_in_executor(None, functools.partial(requests.get, ["https://ai.simplyprint.io/api/v2/infer"], {"data": data, "headers": headers}))
             self.send_sp("ai_resp", response.json())
         elif ai_interval == 0:
             self.ai_timer.stop()
