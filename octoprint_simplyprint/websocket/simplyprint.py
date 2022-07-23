@@ -110,6 +110,9 @@ class SimplyPrintWebsocket:
             "reconnect": 0,
             "ai": 60.
         }
+
+        self.scores = [] #list for tracking scores. Can be looped back between the SP server and printwatch
+        
         self.temp_timer = FlexTimer(self._handle_temperature_update)
         self.job_info_timer = FlexTimer(self._handle_job_info_update)
         self.cpu_timer = FlexTimer(self._handle_cpu_update)
@@ -997,8 +1000,25 @@ class SimplyPrintWebsocket:
         if ai_interval > 0 and self.webcam_stream.webcam_connected:
             img_data = self.webcam_stream.extract_image()
             headers = {"User-Agent": "Mozilla/5.0"}
-            data = json.dumps({"api_key": self.settings.get(["printer_token"]), "image_array": img_data, "interval": ai_interval}).encode('utf8')
+            data = json.dumps(
+                {
+                    "api_key": self.settings.get(["printer_token"]),
+                    "image_array": img_data,
+                    "interval": ai_interval,
+                    "printer_id" : 'ahe728nh28jeh2983ne', #unique id for the printer. No two printer_id's should be the same.
+                    "settings" : { #this settings dict can be looped back between SP servers and printwatch. Should grab the settings from the "AI widget" and plug it in here. This is just a hard-coded example
+                        "buffer_percent" : 80, #80 percent. Typically input as an integer. 
+                        "confidence" : 60, #60 percent. Typically input as an integer.
+                        "buffer_length" : 16 #16 detections. 
+                    },
+                    "scores" : self.scores #list used to loopback historical data. Can be looped back between SP server and printwatch instead. The self.scores for this example is defined on line 114. 
+                }
+            ).encode('utf8')
+            
             response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers)
+            
+            self.scores.append(response.json()["score"]) #the score from the response is appended to the scores list. 
+            
             self.send_sp("ai_resp", response.json())
             self.ai_timer.start(delay=ai_interval)
         elif ai_interval == 0:
