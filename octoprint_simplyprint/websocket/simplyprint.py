@@ -110,9 +110,6 @@ class SimplyPrintWebsocket:
             "reconnect": 0,
             "ai": 60.
         }
-
-        self.scores = [] #list for tracking scores. Can be looped back between the SP server and printwatch
-        
         self.temp_timer = FlexTimer(self._handle_temperature_update)
         self.job_info_timer = FlexTimer(self._handle_job_info_update)
         self.cpu_timer = FlexTimer(self._handle_cpu_update)
@@ -122,6 +119,7 @@ class SimplyPrintWebsocket:
             logging.getLogger("octoprint.plugins.simplyprint.monitor")
         )
         self.ai_timer = FlexTimer(self._handle_ai_snapshot)
+        self.scores = []
         self.webcam_stream = WebcamStream(self.settings, self._send_image)
         self.amb_detect = AmbientDetect(
             self.cache, self._on_ambient_changed,
@@ -1005,21 +1003,20 @@ class SimplyPrintWebsocket:
                     "api_key": self.settings.get(["printer_token"]),
                     "image_array": img_data,
                     "interval": ai_interval,
-                    "printer_id" : 'ahe728nh28jeh2983ne', #unique id for the printer. No two printer_id's should be the same.
-                    "settings" : { #this settings dict can be looped back between SP servers and printwatch. Should grab the settings from the "AI widget" and plug it in here. This is just a hard-coded example
-                        "buffer_percent" : 80, #80 percent. Typically input as an integer. 
-                        "confidence" : 60, #60 percent. Typically input as an integer.
-                        "buffer_length" : 16 #16 detections. 
+                    "printer_id" : self.settings.get(["printer_id"]),
+                    "settings" : { 
+                        "buffer_percent" : 80,  
+                        "confidence" : 60, 
+                        "buffer_length" : 16 
                     },
-                    "scores" : self.scores #list used to loopback historical data. Can be looped back between SP server and printwatch instead. The self.scores for this example is defined on line 114. 
+                    "scores" : self.scores 
                 }
             ).encode('utf8')
             
             response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers)
-            
-            self.scores.append(response.json()["score"]) #the score from the response is appended to the scores list. 
-            
-            self.send_sp("ai_resp", response.json())
+            response_json = response.json()
+            self.scores = response_json["scores"]
+            self.send_sp("ai_resp", response_json)
             self.ai_timer.start(delay=ai_interval)
         elif ai_interval == 0:
             self.ai_timer.stop()
