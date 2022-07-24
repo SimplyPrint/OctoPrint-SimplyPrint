@@ -1013,7 +1013,7 @@ class SimplyPrintWebsocket:
                 }
             ).encode('utf8')
             
-            response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers)
+            response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
             response_json = response.json()
             self.scores = response_json["scores"]
             self.send_sp("ai_resp", response_json)
