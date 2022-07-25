@@ -810,6 +810,7 @@ class SimplyPrintWebsocket:
         self._send_job_event(job_info)
         self.set_display_message("Printing...", True)
         self.ai_timer.start(delay=120.)
+        self.scores = []
 
     def _on_print_paused(self) -> None:
         self.job_info_timer.stop()
@@ -821,6 +822,7 @@ class SimplyPrintWebsocket:
     def _on_print_resumed(self) -> None:
         self.job_info_timer.start()
         self._update_state("printing")
+        self.scores = []
 
     def _on_print_done(self, job_state: str) -> None:
         self.job_info_timer.stop()
