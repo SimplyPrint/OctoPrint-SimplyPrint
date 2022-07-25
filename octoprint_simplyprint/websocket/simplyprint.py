@@ -1017,7 +1017,7 @@ class SimplyPrintWebsocket:
             
             response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
             response_json = response.json()
-            self.scores = response_json["scores"]
+            self.scores = response_json.get("scores", self.scores)
             self.send_sp("ai_resp", response_json)
             self.ai_timer.start(delay=ai_interval)
         elif ai_interval == 0:
