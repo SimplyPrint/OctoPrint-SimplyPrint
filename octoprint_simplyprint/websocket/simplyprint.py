@@ -119,6 +119,7 @@ class SimplyPrintWebsocket:
             logging.getLogger("octoprint.plugins.simplyprint.monitor")
         )
         self.ai_timer = FlexTimer(self._handle_ai_snapshot)
+        self.failed_ai_attempts = 0
         self.scores = []
         self.webcam_stream = WebcamStream(self.settings, self._send_image)
         self.amb_detect = AmbientDetect(
@@ -1014,11 +1015,17 @@ class SimplyPrintWebsocket:
                     "scores" : self.scores 
                 }
             ).encode('utf8')
-            
-            response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
-            response_json = response.json()
-            self.scores = response_json.get("scores", self.scores)
-            self.send_sp("ai_resp", response_json)
+            try:
+                response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
+                self.failed_ai_attempt = 0
+                response_json = response.json()
+                self.scores = response_json.get("scores", self.scores)
+                self.send_sp("ai_resp", response_json)
+            except:
+                self.failed_ai_attempts += 1
+                td = ai_interval + (self.failed_ai_attempts * 5.0) if self.failed_ai_attempts <= 10 else 120.
+                self.ai_timer.start(delay=td)
+                
             self.ai_timer.start(delay=ai_interval)
         elif ai_interval == 0:
             self.ai_timer.stop()
