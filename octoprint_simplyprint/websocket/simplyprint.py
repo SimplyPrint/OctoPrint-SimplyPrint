@@ -122,6 +122,8 @@ class SimplyPrintWebsocket:
             logging.getLogger("octoprint.plugins.simplyprint.monitor")
         )
         self.ai_timer = FlexTimer(self._handle_ai_snapshot)
+        self.failed_ai_attempts = 0
+        self.scores = []
         self.reset_printer_display_timer = FlexTimer(self._reset_printer_display)
         self.webcam_stream = WebcamStream(self.settings, self._send_image)
         self.amb_detect = AmbientDetect(
@@ -816,6 +818,7 @@ class SimplyPrintWebsocket:
         self._send_job_event(job_info)
         self.set_display_message("Printing...", True)
         self.ai_timer.start(delay=120.)
+        self.scores = []
         self.reset_printer_display_timer.stop()
 
     def _on_print_paused(self) -> None:
@@ -828,6 +831,7 @@ class SimplyPrintWebsocket:
     def _on_print_resumed(self) -> None:
         self.job_info_timer.start()
         self._update_state("printing")
+        self.scores = []
 
     def _on_print_done(self, job_state: str) -> None:
         self.job_info_timer.stop()
@@ -1011,9 +1015,32 @@ class SimplyPrintWebsocket:
         if ai_interval > 0 and self.webcam_stream.webcam_connected:
             img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
             headers = {"User-Agent": "Mozilla/5.0"}
-            data = json.dumps({"api_key": self.settings.get(["printer_token"]), "image_array": img_data, "interval": ai_interval}).encode('utf8')
-            response = await self._loop.run_in_executor(None, functools.partial(requests.get, "https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers))
-            self.send_sp("ai_resp", response.json())
+            data = json.dumps(
+                {
+                    "api_key": self.settings.get(["printer_token"]),
+                    "image_array": img_data,
+                    "interval": ai_interval,
+                    "printer_id" : self.settings.get(["printer_id"]),
+                    "settings" : { 
+                        "buffer_percent" : 80,  
+                        "confidence" : 60, 
+                        "buffer_length" : 16 
+                    },
+                    "scores" : self.scores 
+                }
+            ).encode('utf8')
+            try:
+                response = await requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
+                self.failed_ai_attempt = 0
+                response_json = response.json()
+                self.scores = response_json.get("scores", self.scores)
+                self.send_sp("ai_resp", {"ai" : response_json.get("s1", [0, 0, 0])})
+            except:
+                self.failed_ai_attempts += 1
+                td = ai_interval + (self.failed_ai_attempts * 5.0) if self.failed_ai_attempts <= 10 else 120.
+                self.ai_timer.start(delay=td)
+                
+            self.ai_timer.start(delay=ai_interval)
         elif ai_interval == 0:
             self.ai_timer.stop()
         return eventtime + ai_interval
