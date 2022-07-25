@@ -1020,7 +1020,7 @@ class SimplyPrintWebsocket:
                 self.failed_ai_attempt = 0
                 response_json = response.json()
                 self.scores = response_json.get("scores", self.scores)
-                self.send_sp("ai_resp", response_json)
+                self.send_sp("ai_resp", response_json.get("s1", [0, 0, 0]))
             except:
                 self.failed_ai_attempts += 1
                 td = ai_interval + (self.failed_ai_attempts * 5.0) if self.failed_ai_attempts <= 10 else 120.
