@@ -394,6 +394,8 @@ class SimplyPrintWebsocket:
                 if data.get("in_setup", 0) == 1:
                     self.is_set_up = False
                     self.settings.set_boolean(["is_set_up"], False)
+                    self.settings.set(["printer_id"], "")
+                    self.settings.set(["printer_name"], "")
                     if "short_id" in data:
                         self.settings.set(["temp_short_setup_id"], data["short_id"])
                     self.settings.save(trigger_event=True)
