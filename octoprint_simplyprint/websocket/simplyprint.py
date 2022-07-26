@@ -1010,6 +1010,9 @@ class SimplyPrintWebsocket:
             self.send_sp("software_updates", {"available": updates})
         return eventtime + UPDATE_CHECK_TIME
 
+    async def _make_request(self, endpoint, data, headers, timeout):
+        return requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
+    
     async def _handle_ai_snapshot(self, eventtime: float) -> float:
         ai_interval = self.intervals.get("ai", 0)
         if ai_interval > 0 and self.webcam_stream.webcam_connected:
@@ -1030,7 +1033,7 @@ class SimplyPrintWebsocket:
                 }
             ).encode('utf8')
             try:
-                response = await requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
+                response = await self._make_request("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
                 self.failed_ai_attempt = 0
                 response_json = response.json()
                 self.scores = response_json.get("scores", self.scores)
