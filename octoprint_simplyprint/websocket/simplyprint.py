@@ -398,11 +398,7 @@ class SimplyPrintWebsocket:
                         self.settings.set(["temp_short_setup_id"], data["short_id"])
                     self.settings.save(trigger_event=True)
                 interval = data.get("interval")
-                if isinstance(interval, dict):
-                    for key, val in interval.items():
-                        self.intervals[key] = val / 1000.
-                    self._logger.debug(f"Intervals Updated: {self.intervals}")
-                    self._start_printer_reconnect()
+                self._set_intervals(interval)
                 self.reconnect_token = data.get("reconnect_token")
                 name = data.get("name")
                 if name is not None:
@@ -452,16 +448,25 @@ class SimplyPrintWebsocket:
             demand = data.pop("demand", "unknown")
             self._process_demand(demand, data)
         elif event == "interval_change":
-            if isinstance(data, dict):
-                for key, val in data.items():
-                    self.intervals[key] = val / 1000.
-                self._logger.debug(f"Intervals Updated: {self.intervals}")
-                self._start_printer_reconnect()
+            self._set_intervals(data)
         else:
             # TODO: It would be good for the backend to send an
             # event indicating that it is ready to recieve printer
             # status.
             self._logger.debug(f"Unknown event: {msg}")
+
+    def _set_intervals(self, data):
+        if isinstance(data, dict):
+            ai_timer_retart = False
+            for key, val in data.items():
+                if key == "ai" and val / 1000. < self.intervals.get("ai"):
+                    ai_timer_retart = True
+                self.intervals[key] = val / 1000.
+            self._logger.debug(f"Intervals Updated: {self.intervals}")
+            if ai_timer_retart:
+                self.ai_timer.stop()
+                self.ai_timer.start()
+            self._start_printer_reconnect()
 
     def _process_demand(self, demand: str, args: Dict[str, Any]) -> None:
         if demand == "pause":
@@ -1030,7 +1035,7 @@ class SimplyPrintWebsocket:
                 }
             ).encode('utf8')
             try:
-                response = await requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
+                response = requests.get("https://ai.simplyprint.io/api/v2/infer", data=data, headers=headers, timeout=10)
                 self.failed_ai_attempt = 0
                 response_json = response.json()
                 self.scores = response_json.get("scores", self.scores)
