@@ -443,6 +443,7 @@ class SimplyPrintWebsocket:
             self.settings.set(["temp_short_setup_id"], "")
             self.settings.save(trigger_event=True)
             self.set_display_message("Set up!", True)
+            self._set_ws_url()
         elif event == "demand":
             if data is None:
                 self._logger.debug(f"Invalid message, no data")
