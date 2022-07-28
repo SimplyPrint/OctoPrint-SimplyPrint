@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 import asyncio
-import functools
 import json
 import pathlib
 import logging
@@ -466,9 +465,10 @@ class SimplyPrintWebsocket:
                     ai_timer_retart = True
                 self.intervals[key] = val / 1000.
             self._logger.debug(f"Intervals Updated: {self.intervals}")
-            if ai_timer_retart:
+            if ai_timer_retart and self.printer.is_printing():
+                td = 0 if datetime.datetime.now() > self.ai_timer_not_before else 120. - (self.ai_timer_not_before - datetime.datetime.now()).total_seconds()
                 self.ai_timer.stop()
-                self.ai_timer.start()
+                self.ai_timer.start(delay=td)
             self._start_printer_reconnect()
 
     def _process_demand(self, demand: str, args: Dict[str, Any]) -> None:
@@ -825,12 +825,14 @@ class SimplyPrintWebsocket:
         self.job_info_timer.start()
         self._send_job_event(job_info)
         self.set_display_message("Printing...", True)
+        self.ai_timer_not_before = datetime.datetime.now() + datetime.timedelta(seconds=120)
         self.ai_timer.start(delay=120.)
         self.scores = []
         self.reset_printer_display_timer.stop()
 
     def _on_print_paused(self) -> None:
         self.job_info_timer.stop()
+        self.ai_timer.stop()
         self.send_sp("job_info", {"paused": True})
         self._update_state("paused")
         if self.settings.get_boolean(["display_show_status"]):
@@ -838,6 +840,7 @@ class SimplyPrintWebsocket:
 
     def _on_print_resumed(self) -> None:
         self.job_info_timer.start()
+        self.ai_timer.start(delay=self.intervals.get("ai"))
         self._update_state("printing")
         self.scores = []
 
@@ -1018,8 +1021,8 @@ class SimplyPrintWebsocket:
             self.send_sp("software_updates", {"available": updates})
         return eventtime + UPDATE_CHECK_TIME
 
-    async def _make_ai_request(self, endpoint, data, headers, timeout):
-        return requests.get(endpoint, data=data, headers=headers, timeout=10)
+    async def _make_ai_request(self, endpoint, data, headers, timeout=10):
+        return requests.get(endpoint, data=data, headers=headers, timeout=timeout)
     
     async def _handle_ai_snapshot(self, eventtime: float) -> float:
         ai_interval = self.intervals.get("ai", 0)
@@ -1032,12 +1035,12 @@ class SimplyPrintWebsocket:
                     "image_array": img_data,
                     "interval": ai_interval,
                     "printer_id" : self.settings.get(["printer_id"]),
-                    "settings" : { 
-                        "buffer_percent" : 80,  
-                        "confidence" : 60, 
-                        "buffer_length" : 16 
+                    "settings" : {
+                        "buffer_percent" : 80,
+                        "confidence" : 60,
+                        "buffer_length" : 16
                     },
-                    "scores" : self.scores 
+                    "scores" : self.scores
                 }
             ).encode('utf8')
             try:
