@@ -57,6 +57,12 @@ class SystemQuery:
         info["core_count"] = os.cpu_count()
         info["total_memory"] = psutil.virtual_memory().total
         info.update(self.get_network_info())
+
+        port = self._get_public_port()
+
+        if port:
+            info["local_ip"] += ":" + str(port)
+
         return info
 
     def _get_python_version(self) -> str:
@@ -162,7 +168,7 @@ class SystemQuery:
         from octoprint import __version__
         return __version__, VERSION
 
-    def get_public_port(self) -> str:
+    def _get_public_port(self) -> str:
         # noinspection PyProtectedMember
         return self._settings.get(["public_port"])
 

@@ -98,8 +98,6 @@ class SimplyPrint(
     _files_analyzed = []
 
     simply_print = None
-
-    host = "127.0.0.1"
     port = "5000"
 
     def initialize(self):
@@ -123,17 +121,9 @@ class SimplyPrint(
         else:
             self.simply_print.on_startup()
 
-        self.host = host
         # Remember that this port is internal to OctoPrint, a proxy may exist.
         self.port = port
-
-        ip = host
-
-        if port:
-            ip += str(port)
-
-        self._logger.info("Host is; " + str(host) + " and port is; " + str(port))
-        self.send_port_ip(None, ip)
+        self.send_port_ip(port)
 
     def notify_websocket_ready(self):
         cron.remove_cron_jobs()
@@ -246,7 +236,7 @@ class SimplyPrint(
             self._uninstall_sp()
 
     # Send public port to outside system
-    def send_port_ip(self, port=None, ip=None):
+    def send_port_ip(self, port=None):
         self._settings.set(["public_port"], port)
         self._settings.save()
 
