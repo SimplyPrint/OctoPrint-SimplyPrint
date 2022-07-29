@@ -123,7 +123,8 @@ class SimplyPrint(
 
         # Remember that this port is internal to OctoPrint, a proxy may exist.
         self.port = port
-        self.send_port_ip(port)
+        if port != 5000 and port != 80 and port != 443:
+            self.send_port_ip(port)
 
     def notify_websocket_ready(self):
         cron.remove_cron_jobs()
