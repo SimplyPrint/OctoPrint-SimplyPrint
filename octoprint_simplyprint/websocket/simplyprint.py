@@ -1195,6 +1195,7 @@ class SimplyPrintWebsocket:
         if (
             not self.connected or
             self.ws is None or
+            self.ws.protocol is None or
             not self._check_setup_event(evt_name)
         ):
             fut = self._aioloop.create_future()
@@ -1205,8 +1206,13 @@ class SimplyPrintWebsocket:
             self._sock_logger.info(f"sent: {packet}")
         else:
             self._sock_logger.info("sent: webcam stream")
+        try:
+            fut = self.ws.write_message(json.dumps(packet))
+        except tornado.websocket.WebSocketClosedError:
+            fut = self._aioloop.create_future()
+            fut.set_result(False)
         self._reset_keepalive()
-        return self.ws.write_message(json.dumps(packet))
+        return fut
 
     def set_display_message(self, message: str, short_branding=False) -> None:
         enabled = self.settings.get_boolean(["display_enabled"])
