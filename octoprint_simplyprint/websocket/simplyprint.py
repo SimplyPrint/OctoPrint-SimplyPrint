@@ -22,6 +22,7 @@ import asyncio
 import json
 import pathlib
 import logging
+import functools
 import tornado.websocket
 from tornado.ioloop import IOLoop
 
@@ -1022,8 +1023,14 @@ class SimplyPrintWebsocket:
         return eventtime + UPDATE_CHECK_TIME
 
     async def _make_ai_request(self, endpoint, data, headers, timeout=10):
-        return requests.get(endpoint, data=data, headers=headers, timeout=timeout)
-    
+        return await self._loop.run_in_executor(
+            None,
+            functools.partial(
+                requests.get, endpoint, data=data, headers=headers,
+                timeout=timeout
+            )
+        )
+
     async def _handle_ai_snapshot(self, eventtime: float) -> float:
         ai_interval = self.intervals.get("ai", 0)
         if ai_interval > 0 and self.webcam_stream.webcam_connected:
