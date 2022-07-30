@@ -22,6 +22,7 @@ import asyncio
 import json
 import pathlib
 import logging
+import functools
 import tornado.websocket
 from tornado.ioloop import IOLoop
 
@@ -1022,8 +1023,14 @@ class SimplyPrintWebsocket:
         return eventtime + UPDATE_CHECK_TIME
 
     async def _make_ai_request(self, endpoint, data, headers, timeout=10):
-        return requests.get(endpoint, data=data, headers=headers, timeout=timeout)
-    
+        return await self._loop.run_in_executor(
+            None,
+            functools.partial(
+                requests.get, endpoint, data=data, headers=headers,
+                timeout=timeout
+            )
+        )
+
     async def _handle_ai_snapshot(self, eventtime: float) -> float:
         ai_interval = self.intervals.get("ai", 0)
         if ai_interval > 0 and self.webcam_stream.webcam_connected:
@@ -1195,6 +1202,7 @@ class SimplyPrintWebsocket:
         if (
             not self.connected or
             self.ws is None or
+            self.ws.protocol is None or
             not self._check_setup_event(evt_name)
         ):
             fut = self._aioloop.create_future()
@@ -1205,8 +1213,13 @@ class SimplyPrintWebsocket:
             self._sock_logger.info(f"sent: {packet}")
         else:
             self._sock_logger.info("sent: webcam stream")
+        try:
+            fut = self.ws.write_message(json.dumps(packet))
+        except tornado.websocket.WebSocketClosedError:
+            fut = self._aioloop.create_future()
+            fut.set_result(False)
         self._reset_keepalive()
-        return self.ws.write_message(json.dumps(packet))
+        return fut
 
     def set_display_message(self, message: str, short_branding=False) -> None:
         enabled = self.settings.get_boolean(["display_enabled"])
@@ -1274,8 +1287,6 @@ class SimplyPrintWebsocket:
 
     async def _do_close(self):
         self._logger.info("Closing SimplyPrint Websocket...")
-        #self.webcam_stream.stop()
-        await self.send_sp("shutdown", None)
         self.qlistner.stop()
         self.amb_detect.stop()
         self.temp_timer.stop()
@@ -1284,6 +1295,10 @@ class SimplyPrintWebsocket:
         self.ai_timer.stop()
         self.printer_reconnect_timer.stop()
         self.update_timer.stop()
+        try:
+            await self.send_sp("shutdown", None)
+        except tornado.websocket.WebSocketClosedError:
+            pass
         self.is_closing = True
         if self.ws is not None:
             self.ws.close(1001, "Client Shutdown")
