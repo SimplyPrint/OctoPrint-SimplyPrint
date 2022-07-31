@@ -24,6 +24,7 @@ import pathlib
 import logging
 import functools
 import tornado.websocket
+from octoprint.util import server_reachable
 from tornado.ioloop import IOLoop
 
 from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT
@@ -829,7 +830,7 @@ class SimplyPrintWebsocket:
         self.ai_timer_not_before = datetime.datetime.now() + datetime.timedelta(seconds=120)
         self.ai_timer.start(delay=120.)
         self.scores = []
-        self.reset_printer_display_timer.stop()
+        # self.reset_printer_display_timer.stop()
 
     def _on_print_paused(self) -> None:
         self.job_info_timer.stop()
@@ -848,7 +849,7 @@ class SimplyPrintWebsocket:
     def _on_print_done(self, job_state: str) -> None:
         self.job_info_timer.stop()
         self.ai_timer.stop()
-        self.reset_printer_display_timer.start()
+        # self.reset_printer_display_timer.start()
         self._send_job_event({job_state: True})
         self.cache.job_info = {}
         self.current_layer = -1
@@ -929,7 +930,7 @@ class SimplyPrintWebsocket:
                 time_left != last_time_left
             ):
                 job_info["time"] = time_left
-                if self.settings.get_int(["display_while_printing_type"]) == 2:
+                if self.settings.get_int(["display_while_printing_type"]) == 1:
                     remaining_time = str(datetime.timedelta(seconds=time_left))
                     self.set_display_message(f"Time Remaining: {remaining_time}", True)
             if progress.get("PrintTimeLeftOrigin", "") == "genius":
@@ -943,7 +944,7 @@ class SimplyPrintWebsocket:
             pct_done != self.cache.job_info.get("progress", 0)
         ):
             job_info["progress"] = pct_done
-            if self.settings.get_int(["display_while_printing_type"]) == 1:
+            if self.settings.get_int(["display_while_printing_type"]) == 0:
                 self.set_display_message(f"Printing {pct_done}%", True)
         layer = self.current_layer
         if layer != self.cache.job_info.get("layer", -1):
@@ -1241,8 +1242,10 @@ class SimplyPrintWebsocket:
     def _reset_printer_display(self, eventtime: float) -> float:
         if self.settings.get_boolean(["display_show_status"]) is False:
             self.reset_printer_display_timer.stop()
-        if self.is_connected and not self.printer.is_printing():
+        elif self.is_connected and not self.printer.is_printing():
             self.set_display_message(f"Ready", True)
+        elif not server_reachable("www.google.com"):
+            self.set_display_message(f"No Internet", True)
         return eventtime + self.intervals.get("ready_message", 60.)
 
     def _reset_keepalive(self):
