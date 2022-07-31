@@ -24,6 +24,7 @@ import pathlib
 import logging
 import functools
 import tornado.websocket
+from octoprint.util import server_reachable
 from tornado.ioloop import IOLoop
 
 from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT
@@ -929,7 +930,7 @@ class SimplyPrintWebsocket:
                 time_left != last_time_left
             ):
                 job_info["time"] = time_left
-                if self.settings.get_int(["display_while_printing_type"]) == 2:
+                if self.settings.get_int(["display_while_printing_type"]) == 1:
                     remaining_time = str(datetime.timedelta(seconds=time_left))
                     self.set_display_message(f"Time Remaining: {remaining_time}", True)
             if progress.get("PrintTimeLeftOrigin", "") == "genius":
@@ -943,7 +944,7 @@ class SimplyPrintWebsocket:
             pct_done != self.cache.job_info.get("progress", 0)
         ):
             job_info["progress"] = pct_done
-            if self.settings.get_int(["display_while_printing_type"]) == 1:
+            if self.settings.get_int(["display_while_printing_type"]) == 0:
                 self.set_display_message(f"Printing {pct_done}%", True)
         layer = self.current_layer
         if layer != self.cache.job_info.get("layer", -1):
@@ -1241,8 +1242,10 @@ class SimplyPrintWebsocket:
     def _reset_printer_display(self, eventtime: float) -> float:
         if self.settings.get_boolean(["display_show_status"]) is False:
             self.reset_printer_display_timer.stop()
-        if self.is_connected and not self.printer.is_printing():
+        elif self.is_connected and not self.printer.is_printing():
             self.set_display_message(f"Ready", True)
+        elif not server_reachable("www.google.com"):
+            self.set_display_message(f"No Internet", True)
         return eventtime + self.intervals.get("ready_message", 60.)
 
     def _reset_keepalive(self):
