@@ -830,7 +830,7 @@ class SimplyPrintWebsocket:
         self.ai_timer_not_before = datetime.datetime.now() + datetime.timedelta(seconds=120)
         self.ai_timer.start(delay=120.)
         self.scores = []
-        self.reset_printer_display_timer.stop()
+        # self.reset_printer_display_timer.stop()
 
     def _on_print_paused(self) -> None:
         self.job_info_timer.stop()
@@ -849,7 +849,7 @@ class SimplyPrintWebsocket:
     def _on_print_done(self, job_state: str) -> None:
         self.job_info_timer.stop()
         self.ai_timer.stop()
-        self.reset_printer_display_timer.start()
+        # self.reset_printer_display_timer.start()
         self._send_job_event({job_state: True})
         self.cache.job_info = {}
         self.current_layer = -1
@@ -1246,6 +1246,7 @@ class SimplyPrintWebsocket:
             self.set_display_message(f"Ready", True)
         elif not server_reachable("www.google.com"):
             self.set_display_message(f"No Internet", True)
+        self.reset_printer_display_timer.start(delay=self.intervals.get("ready_message", 60.))
         return eventtime + self.intervals.get("ready_message", 60.)
 
     def _reset_keepalive(self):
