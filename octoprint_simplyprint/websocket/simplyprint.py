@@ -1246,7 +1246,6 @@ class SimplyPrintWebsocket:
             self.set_display_message(f"Ready", True)
         elif not server_reachable("www.google.com"):
             self.set_display_message(f"No Internet", True)
-        self.reset_printer_display_timer.start(delay=self.intervals.get("ready_message", 60.))
         return eventtime + self.intervals.get("ready_message", 60.)
 
     def _reset_keepalive(self):
