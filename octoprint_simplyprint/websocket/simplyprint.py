@@ -1415,7 +1415,7 @@ class AmbientDetect:
 class FlexTimer:
     def __init__(self, callback: TimerCallback) -> None:
         self.callback = callback
-        self.timer_task: Optional[asyncio.Task] = None
+        self.timer_handle: Optional[asyncio.Handle] = None
         self.running: bool = False
 
     def start(self, delay: float = 0.):
@@ -1433,9 +1433,9 @@ class FlexTimer:
         if not self.running:
             return
         self.running = False
-        if self.timer_task is not None:
-            self.timer_task.cancel()
-            self.timer_task = None
+        if self.timer_handle is not None:
+            self.timer_handle.cancel()
+            self.timer_handle = None
 
     def _schedule_task(self):
         self.timer_handle = None
