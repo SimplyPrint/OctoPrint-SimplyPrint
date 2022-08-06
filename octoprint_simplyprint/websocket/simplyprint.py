@@ -1239,10 +1239,16 @@ class SimplyPrintWebsocket:
             message = prefix + message
         self.printer.commands(f"M117 {message}")
 
-    def _reset_printer_display(self, eventtime: float) -> float:
+    async def _reset_printer_display(self, eventtime: float) -> float:
+        self._logger.debug(f"resetting display at {eventtime}")
         if self.settings.get_boolean(["display_show_status"]) is False:
             self.reset_printer_display_timer.stop()
-        if not server_reachable("www.google.com", 80):
+        is_online = await self._loop.run_in_executor(
+            None,
+            functools.partial(
+                server_reachable, "www.google.com", 80
+            ))
+        if not is_online:
             self.set_display_message(f"No Internet", True)
         elif self.is_connected and not self.printer.is_printing():
             self.set_display_message(f"Ready", True)
