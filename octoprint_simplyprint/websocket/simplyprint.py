@@ -1242,11 +1242,11 @@ class SimplyPrintWebsocket:
     def _reset_printer_display(self, eventtime: float) -> float:
         if self.settings.get_boolean(["display_show_status"]) is False:
             self.reset_printer_display_timer.stop()
-        if self.is_connected and not self.printer.is_printing():
-            self.set_display_message(f"Ready", True)
-        if not server_reachable("www.google.com"):
+        if not server_reachable("www.google.com", 80):
             self.set_display_message(f"No Internet", True)
-        return eventtime + self.intervals.get("ready_message", 60.)
+        elif self.is_connected and not self.printer.is_printing():
+            self.set_display_message(f"Ready", True)
+        return eventtime + self.intervals["ready_message"]
 
     def _reset_keepalive(self):
         if self.keepalive_hdl is not None:
