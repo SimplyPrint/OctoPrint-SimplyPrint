@@ -23,6 +23,7 @@ import json
 import pathlib
 import logging
 import functools
+import re
 import tornado.websocket
 from octoprint.util import server_reachable
 from tornado.ioloop import IOLoop
@@ -317,7 +318,16 @@ class SimplyPrintWebsocket:
             if log_connect:
                 self._logger.info(f"Connecting To SimplyPrint: {url}")
                 log_connect = False
+            url_start = self.connect_url[6:]
+            url_start_match = re.match(r"wss://([^/]+)", self.connect_url)
+            if url_start_match is not None:
+                url_start = url_start_match.group(1)
             try:
+                reachable = await self._loop.run_in_executor(
+                    None, server_reachable, url_start, 80
+                )
+                if not reachable:
+                    raise Exception("SimplyPrint not Reachable")
                 self.ws = await tornado.websocket.websocket_connect(
                     url, connect_timeout=5.
                 )
