@@ -24,7 +24,7 @@ import pathlib
 import logging
 import functools
 import tornado.websocket
-from octoprint.util import server_reachable, RepeatedTimer
+from octoprint.util import server_reachable
 from tornado.ioloop import IOLoop
 
 from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT
@@ -125,7 +125,7 @@ class SimplyPrintWebsocket:
         self.ai_timer = FlexTimer(self._handle_ai_snapshot)
         self.failed_ai_attempts = 0
         self.scores = []
-        self.reset_printer_display_timer = None
+        self.reset_printer_display_timer = FlexTimer(self._reset_printer_display)
         self.webcam_stream = WebcamStream(self.settings, self._send_image)
         self.amb_detect = AmbientDetect(
             self.cache, self._on_ambient_changed,
@@ -298,8 +298,6 @@ class SimplyPrintWebsocket:
         await self.webcam_stream.test_connection()
         coro = self._connect()
         self.connection_task = self._aioloop.create_task(coro)
-        if self.reset_printer_display_timer is None:
-            self._restart_reset_display_timer()
 
     async def _get_machine_data(self) -> Dict[str, Any]:
         sys_query = SystemQuery(self.settings)
@@ -338,6 +336,7 @@ class SimplyPrintWebsocket:
                 failed_attempts += 1
                 if not failed_attempts % 10:
                     self.set_display_message("Can't reach SP", True)
+                    self.reset_printer_display_timer.start(delay=120)
             else:
                 if failed_attempts:
                     self.set_display_message("Back online!", True)
@@ -463,20 +462,15 @@ class SimplyPrintWebsocket:
     def _set_intervals(self, data):
         if isinstance(data, dict):
             ai_timer_retart = False
-            ready_message_reset = False
             for key, val in data.items():
                 if key == "ai" and val / 1000. < self.intervals.get("ai"):
                     ai_timer_retart = True
-                if key == "ready_message" and val / 1000. != self.intervals.get("ready_message"):
-                    ready_message_reset = True
                 self.intervals[key] = val / 1000.
             self._logger.debug(f"Intervals Updated: {self.intervals}")
             if ai_timer_retart and self.printer.is_printing():
                 td = 0 if datetime.datetime.now() > self.ai_timer_not_before else 120. - (self.ai_timer_not_before - datetime.datetime.now()).total_seconds()
                 self.ai_timer.stop()
                 self.ai_timer.start(delay=td)
-            if ready_message_reset:
-                self._restart_reset_display_timer()
             self._start_printer_reconnect()
 
     def _process_demand(self, demand: str, args: Dict[str, Any]) -> None:
@@ -780,6 +774,8 @@ class SimplyPrintWebsocket:
             self._update_state("printing")
         elif self.printer.is_operational():
             self._update_state("operational")
+            if self.settings.get_boolean(["display_show_status"]):
+                self.reset_printer_display_timer.start()
         self.temp_timer.start()
         self.amb_detect.start()
         self.printer_reconnect_timer.stop()
@@ -793,6 +789,7 @@ class SimplyPrintWebsocket:
         self.job_info_timer.stop()
         self.webcam_stream.stop()
         self.ai_timer.stop()
+        self.reset_printer_display_timer.stop()
         self.cache.reset_print_state()
         self._start_printer_reconnect()
 
@@ -852,6 +849,7 @@ class SimplyPrintWebsocket:
     def _on_print_done(self, job_state: str) -> None:
         self.job_info_timer.stop()
         self.ai_timer.stop()
+        # self.reset_printer_display_timer.start()
         self._send_job_event({job_state: True})
         self.cache.job_info = {}
         self.current_layer = -1
@@ -1241,23 +1239,14 @@ class SimplyPrintWebsocket:
             message = prefix + message
         self.printer.commands(f"M117 {message}")
 
-    def _reset_printer_display(self) -> None:
-        if self.settings.get_boolean(["display_show_status"]) is False and self.reset_printer_display_timer is not None:
-            self.reset_printer_display_timer.cancel()
-            self.reset_printer_display_timer = None
+    def _reset_printer_display(self, eventtime: float) -> float:
+        if self.settings.get_boolean(["display_show_status"]) is False:
+            self.reset_printer_display_timer.stop()
         if not server_reachable("www.google.com", 80):
-            self._logger.debug("no internet")
             self.set_display_message(f"No Internet", True)
         elif self.is_connected and not self.printer.is_printing():
-            self._logger.debug("resetting display to ready")
             self.set_display_message(f"Ready", True)
-
-    def _restart_reset_display_timer(self) -> None:
-        if self.reset_printer_display_timer is not None:
-            self.reset_printer_display_timer.cancel()
-            self.reset_printer_display_timer = None
-        self.reset_printer_display_timer = RepeatedTimer(self.intervals["ready_message"], self._reset_printer_display)
-        self.reset_printer_display_timer.start()
+        return eventtime + self.intervals["ready_message"]
 
     def _reset_keepalive(self):
         if self.keepalive_hdl is not None:
