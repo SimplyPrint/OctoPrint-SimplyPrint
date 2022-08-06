@@ -477,22 +477,24 @@ class SimplyPrintWebsocket:
         if demand == "pause":
             self.set_display_message("Pausing...", True)
             self._update_state("pausing")
-            self.printer.pause_print()
+            self._loop.run_in_executor(None, self.printer.pause_print)
         elif demand == "resume":
             self._update_state("resuming")
             self.set_display_message("Resuming...", True)
-            self.printer.resume_print()
+            self._loop.run_in_executor(None, self.printer.resume_print)
         elif demand == "cancel":
             self._update_state("cancelling")
             self.set_display_message("Cancelling...", True)
-            self.printer.cancel_print()
+            self._loop.run_in_executor(None, self.printer.cancel_print)
         elif demand == "terminal":
             if "enabled" in args:
                 self.gcode_terminal_enabled = args["enabled"]
         elif demand == "gcode":
             script_list = args.get("list", [])
             if script_list:
-                self.printer.commands(script_list)
+                self._loop.run_in_executor(
+                    None, self.printer.commands, script_list
+                )
         elif demand == "test_webcam":
             self._loop.add_callback(self._test_webcam)
         elif demand == "stream_on":
@@ -521,12 +523,12 @@ class SimplyPrintWebsocket:
                 self._logger.info(
                     "Connecting to printer at request from SimplyPrint"
                 )
-                self.printer.connect()
+                self._loop.run_in_executor(None, self.printer.connect)
         elif demand == "disconnect_printer":
             self._logger.info(
                 "Disconnecting printer at request from SimplyPrint"
             )
-            self.printer.disconnect()
+            self._loop.run_in_executor(None, self.printer.disconnect)
         elif demand == "system_restart":
             self.set_display_message("Rebooting...", True)
             self._loop.run_in_executor(
@@ -914,11 +916,11 @@ class SimplyPrintWebsocket:
         self._save_item("ambient_temp", new_ambient)
         self.send_sp("ambient", {"new": new_ambient})
 
-    def _handle_job_info_update(self, eventtime: float) -> float:
+    async def _handle_job_info_update(self, eventtime: float) -> float:
         if self.cache.state != "printing":
             return eventtime + self.intervals["job"]
         job_info: Dict[str, Any] = {}
-        cur_data = self.printer.get_current_data()
+        cur_data = await self._loop.run_in_executor(None, self.printer.get_current_data)
         progress: Dict[str, Any] = cur_data["progress"]
         time_left: Optional[float] = progress.get("printTimeLeft")
         pct_done: Optional[int] = None
@@ -1006,12 +1008,12 @@ class SimplyPrintWebsocket:
             return
         self.printer_reconnect_timer.start(delay=2.)
 
-    def _handle_printer_reconnect(self, eventtime: float) -> float:
+    async def _handle_printer_reconnect(self, eventtime: float) -> float:
         rt = self.intervals.get("reconnect", 2.)
         if not rt or self.printer.is_operational():
             self.printer_reconnect_timer.stop()
         elif self.printer.get_state_id() != "CONNECTING":
-            self.printer.connect()
+            await self._loop.run_in_executor(None, self.printer.connect)
         return eventtime + rt
 
     async def _handle_update_check(self, eventtime: float) -> float:
@@ -1237,7 +1239,7 @@ class SimplyPrintWebsocket:
         if self.settings.get_boolean(["display_branding"]):
             prefix = "[SP] " if short_branding else "[SimplyPrint] "
             message = prefix + message
-        self.printer.commands(f"M117 {message}")
+        self._loop.run_in_executor(None, self.printer.commands, f"M117 {message}")
 
     async def _reset_printer_display(self, eventtime: float) -> float:
         self._logger.debug(f"resetting display at {eventtime}")
