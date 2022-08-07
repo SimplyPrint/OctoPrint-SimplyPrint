@@ -23,6 +23,8 @@ import json
 import pathlib
 import logging
 import functools
+import threading
+import re
 import tornado.websocket
 from octoprint.util import server_reachable
 from tornado.ioloop import IOLoop
@@ -96,6 +98,10 @@ class SimplyPrintWebsocket:
         self.is_set_up = self.settings.get(["is_set_up"])
         self._set_ws_url()
 
+        self.simplyprint_thread = threading.Thread(
+            target=self._run_simplyprint_thread
+        )
+        self.simplyprint_thread.daemon = True
         self.is_closing = False
         self.is_connected = False
         self._user_input_req = False
@@ -161,13 +167,14 @@ class SimplyPrintWebsocket:
         return pm.get_helpers(plugin_name)  # type: ignore
 
     def on_startup(self) -> None:
-        self._loop = IOLoop.current()
-        self._aioloop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
-        self.cpu_timer.start()
-        for (func, args) in self.cached_events:
-            func(*args)
-        self.cached_events = []
-        self._loop.add_callback(self._initialize)
+        if self.simplyprint_thread.is_alive():
+            return
+        self.simplyprint_thread.start()
+
+    def _run_simplyprint_thread(self) -> None:
+        self._aioloop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._aioloop)
+        self._aioloop.run_until_complete(self._initialize())
 
     def on_layer_change(self, layer: int) -> None:
         self.current_layer = layer
@@ -289,15 +296,19 @@ class SimplyPrintWebsocket:
         return self._aioloop.time()
 
     async def _initialize(self) -> None:
+        self._loop = IOLoop.current()
+        for (func, args) in self.cached_events:
+            func(*args)
+        self.cached_events = []
         self.update_timer.start(delay=60.)
+        self.cpu_timer.start()
         if self.printer.is_operational():
             self._on_printer_connected()
         else:
             self._update_state_from_octo()
         self.cache.machine_data = await self._get_machine_data()
         await self.webcam_stream.test_connection()
-        coro = self._connect()
-        self.connection_task = self._aioloop.create_task(coro)
+        await self._connect()
 
     async def _get_machine_data(self) -> Dict[str, Any]:
         sys_query = SystemQuery(self.settings)
@@ -317,7 +328,16 @@ class SimplyPrintWebsocket:
             if log_connect:
                 self._logger.info(f"Connecting To SimplyPrint: {url}")
                 log_connect = False
+            url_start = self.connect_url[6:]
+            url_start_match = re.match(r"wss://([^/]+)", self.connect_url)
+            if url_start_match is not None:
+                url_start = url_start_match.group(1)
             try:
+                reachable = await self._loop.run_in_executor(
+                    None, server_reachable, url_start, 80
+                )
+                if not reachable:
+                    raise Exception("SimplyPrint not Reachable")
                 self.ws = await tornado.websocket.websocket_connect(
                     url, connect_timeout=5.
                 )
@@ -477,22 +497,24 @@ class SimplyPrintWebsocket:
         if demand == "pause":
             self.set_display_message("Pausing...", True)
             self._update_state("pausing")
-            self.printer.pause_print()
+            self._loop.run_in_executor(None, self.printer.pause_print)
         elif demand == "resume":
             self._update_state("resuming")
             self.set_display_message("Resuming...", True)
-            self.printer.resume_print()
+            self._loop.run_in_executor(None, self.printer.resume_print)
         elif demand == "cancel":
             self._update_state("cancelling")
             self.set_display_message("Cancelling...", True)
-            self.printer.cancel_print()
+            self._loop.run_in_executor(None, self.printer.cancel_print)
         elif demand == "terminal":
             if "enabled" in args:
                 self.gcode_terminal_enabled = args["enabled"]
         elif demand == "gcode":
             script_list = args.get("list", [])
             if script_list:
-                self.printer.commands(script_list)
+                self._loop.run_in_executor(
+                    None, self.printer.commands, script_list
+                )
         elif demand == "test_webcam":
             self._loop.add_callback(self._test_webcam)
         elif demand == "stream_on":
@@ -521,12 +543,12 @@ class SimplyPrintWebsocket:
                 self._logger.info(
                     "Connecting to printer at request from SimplyPrint"
                 )
-                self.printer.connect()
+                self._loop.run_in_executor(None, self.printer.connect)
         elif demand == "disconnect_printer":
             self._logger.info(
                 "Disconnecting printer at request from SimplyPrint"
             )
-            self.printer.disconnect()
+            self._loop.run_in_executor(None, self.printer.disconnect)
         elif demand == "system_restart":
             self.set_display_message("Rebooting...", True)
             self._loop.run_in_executor(
@@ -914,11 +936,11 @@ class SimplyPrintWebsocket:
         self._save_item("ambient_temp", new_ambient)
         self.send_sp("ambient", {"new": new_ambient})
 
-    def _handle_job_info_update(self, eventtime: float) -> float:
+    async def _handle_job_info_update(self, eventtime: float) -> float:
         if self.cache.state != "printing":
             return eventtime + self.intervals["job"]
         job_info: Dict[str, Any] = {}
-        cur_data = self.printer.get_current_data()
+        cur_data = await self._loop.run_in_executor(None, self.printer.get_current_data)
         progress: Dict[str, Any] = cur_data["progress"]
         time_left: Optional[float] = progress.get("printTimeLeft")
         pct_done: Optional[int] = None
@@ -1006,12 +1028,12 @@ class SimplyPrintWebsocket:
             return
         self.printer_reconnect_timer.start(delay=2.)
 
-    def _handle_printer_reconnect(self, eventtime: float) -> float:
+    async def _handle_printer_reconnect(self, eventtime: float) -> float:
         rt = self.intervals.get("reconnect", 2.)
         if not rt or self.printer.is_operational():
             self.printer_reconnect_timer.stop()
         elif self.printer.get_state_id() != "CONNECTING":
-            self.printer.connect()
+            await self._loop.run_in_executor(None, self.printer.connect)
         return eventtime + rt
 
     async def _handle_update_check(self, eventtime: float) -> float:
@@ -1237,7 +1259,7 @@ class SimplyPrintWebsocket:
         if self.settings.get_boolean(["display_branding"]):
             prefix = "[SP] " if short_branding else "[SimplyPrint] "
             message = prefix + message
-        self.printer.commands(f"M117 {message}")
+        self._loop.run_in_executor(None, self.printer.commands, f"M117 {message}")
 
     async def _reset_printer_display(self, eventtime: float) -> float:
         self._logger.debug(f"resetting display at {eventtime}")
@@ -1296,7 +1318,6 @@ class SimplyPrintWebsocket:
 
     async def _do_close(self):
         self._logger.info("Closing SimplyPrint Websocket...")
-        self.qlistner.stop()
         self.amb_detect.stop()
         self.temp_timer.stop()
         self.job_info_timer.stop()
@@ -1308,6 +1329,7 @@ class SimplyPrintWebsocket:
             await self.send_sp("shutdown", None)
         except tornado.websocket.WebSocketClosedError:
             pass
+        self.qlistner.stop()
         self.is_closing = True
         if self.ws is not None:
             self.ws.close(1001, "Client Shutdown")
@@ -1326,8 +1348,7 @@ class SimplyPrintWebsocket:
     def close(self):
         if self._aioloop.is_running():
             self._loop.add_callback(self._do_close)
-        elif not self._aioloop.is_closed():
-            self._aioloop.run_until_complete(self._do_close())
+            self.simplyprint_thread.join()
 
 class ReportCache:
     def __init__(self) -> None:
@@ -1431,7 +1452,7 @@ class FlexTimer:
         if self.running:
             return
         if not hasattr(self, "_aioloop"):
-            self._aioloop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
+            self._aioloop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
         self.running = True
         call_time = self._aioloop.time() + delay
         self.timer_handle = self._aioloop.call_at(
