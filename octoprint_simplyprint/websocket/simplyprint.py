@@ -219,7 +219,8 @@ class SimplyPrintWebsocket:
         elif event == Events.DISCONNECTED:
             add_callback(self._on_printer_disconnected)
         elif event == Events.ERROR:
-            add_callback(self._on_printer_error)
+            msg = payload.get("error", "")
+            add_callback(self._on_printer_error, msg)
         elif event == Events.PRINT_STARTED:
             add_callback(self._on_print_start, payload)
         elif event == Events.PRINT_FAILED:
@@ -228,7 +229,8 @@ class SimplyPrintWebsocket:
         elif event == Events.PRINT_DONE:
             add_callback(self._on_print_done, "finished")
         elif event == Events.PRINT_CANCELLING:
-            add_callback(self._update_state, "cancelling")
+            msg = payload.get("firmwareError", "")
+            add_callback(self._on_cancelling_event, msg)
         elif event == Events.PRINT_PAUSED:
             add_callback(self._on_print_paused)
         elif event == Events.PRINT_RESUMED:
@@ -815,9 +817,9 @@ class SimplyPrintWebsocket:
         self.cache.reset_print_state()
         self._start_printer_reconnect()
 
-    def _on_printer_error(self):
+    def _on_printer_error(self, msg: str) -> None:
         self._update_state("error")
-        self.send_sp("printer_error", None)
+        self.send_sp("printer_error", {"error": msg})
 
     def _on_print_start(
         self, print_data: Dict[str, Any], need_start_event: bool = True
@@ -868,11 +870,16 @@ class SimplyPrintWebsocket:
         self._update_state("printing")
         self.scores = []
 
-    def _on_print_done(self, job_state: str) -> None:
+    def _on_print_done(
+        self, job_state: str, payload: Optional[Dict[str, Any]] = None
+    ) -> None:
         self.job_info_timer.stop()
         self.ai_timer.stop()
         # self.reset_printer_display_timer.start()
-        self._send_job_event({job_state: True})
+        event_payload: Dict[str, Any] = {job_state: True}
+        if payload is not None:
+            event_payload.update(payload)
+        self._send_job_event(event_payload)
         self.cache.job_info = {}
         self.current_layer = -1
         self.set_display_message("Print Complete", True)
@@ -906,6 +913,10 @@ class SimplyPrintWebsocket:
             if diff:
                 self.cache.job_info.update(diff)
                 self.send_sp("job_info", diff)
+
+    def _on_cancelling_event(self, msg: str):
+        self.cache.firmware_error = msg
+        self._update_state("cancelling")
 
     async def _handle_cpu_update(self, eventtime: float) -> float:
         sys_stats: Dict[str, Any] = await self._loop.run_in_executor(
@@ -1098,7 +1109,9 @@ class SimplyPrintWebsocket:
         if self.cache.state == new_state:
             return
         if self.cache.state == "cancelling":
-            self._on_print_done("cancelled")
+            payload = {"error": self.cache.firmware_error}
+            self.cache.firmware_error = ""
+            self._on_print_done("cancelled", payload)
         self.cache.state = new_state
         self.send_sp("state_change", {"new": new_state})
 
@@ -1366,6 +1379,7 @@ class ReportCache:
         self.download_progress: int = -1
         self.message: str = ""
         self.updates: List[Dict[str, Any]] = []
+        self.firmware_error: str = ""
 
     def reset_print_state(self) -> None:
         self.temps = {}
