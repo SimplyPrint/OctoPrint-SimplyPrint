@@ -1234,7 +1234,9 @@ class SimplyPrintWebsocket:
     def _check_setup_event(self, evt_name: str) -> bool:
         return self.is_set_up or evt_name in PRE_SETUP_EVENTS
 
-    def send_sp(self, evt_name: str, data: Any) -> asyncio.Future:
+    def send_sp(
+        self, evt_name: str, data: Any
+    ) -> Union[asyncio.Future, asyncio.Task]:
         if (
             not self.connected or
             self.ws is None or
@@ -1254,7 +1256,17 @@ class SimplyPrintWebsocket:
         except tornado.websocket.WebSocketClosedError:
             fut = self._aioloop.create_future()
             fut.set_result(False)
-        self._reset_keepalive()
+        else:
+            async def fut_wrapper():
+                try:
+                    await fut
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    pass
+            task = self._aioloop.create_task(fut_wrapper())
+            self._reset_keepalive()
+            return task
         return fut
 
     def set_display_message(self, message: str, short_branding=False) -> None:
