@@ -211,7 +211,7 @@ class SystemManager:
         key = plugin_data.get("key")
         if key is not None and key not in self.installed_plugins:
             self.installed_plugins.append(key)
-            self.settings.set(["sp_installed_plugins"], [])
+            self.settings.set(["sp_installed_plugins"], self.installed_plugins)
             self.settings.save()
         args: List[str] = ["install", url, "--no-cache-dir"]
         try:
@@ -236,7 +236,7 @@ class SystemManager:
         key = plugin_data.get("key")
         if key is not None and key in self.installed_plugins:
             self.installed_plugins.remove(key)
-            self.settings.set(["sp_installed_plugins"], [])
+            self.settings.set(["sp_installed_plugins"], self.installed_plugins)
             self.settings.save()
         pip_name = plugin_data["pip_name"].replace(" ", "-")
         args: List[str] = ["uninstall", "--yes", pip_name]
