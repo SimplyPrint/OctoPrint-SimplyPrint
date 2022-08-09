@@ -39,7 +39,7 @@ import octoprint.util
 from octoprint.plugin import PluginSettings
 from octoprint.printer import PrinterInterface
 from octoprint.filemanager import FileManager
-from octoprint.events import Events
+from octoprint.events import Events, EventManager
 import requests
 import datetime
 
@@ -89,6 +89,7 @@ class SimplyPrintWebsocket:
         self.printer = cast(PrinterInterface, plugin._printer)
         self.file_manager = cast(FileManager, plugin._file_manager)
         self.sys_manager = SystemManager(self)
+        self._event_bus = cast(EventManager, plugin._event_bus)
         if self.settings.get_boolean(["debug_logging"]):
             self._logger.setLevel(logging.DEBUG)
         self.test = False
@@ -1392,6 +1393,11 @@ class SimplyPrintWebsocket:
         if self._aioloop.is_running():
             self._loop.add_callback(self._do_close)
             self.simplyprint_thread.join()
+
+    @property
+    def event_bus(self):
+        return self._event_bus
+
 
 class ReportCache:
     def __init__(self) -> None:

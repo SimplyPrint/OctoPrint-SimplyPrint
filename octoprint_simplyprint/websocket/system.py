@@ -35,6 +35,7 @@ from octoprint.util.commandline import CommandlineCaller
 from octoprint.util.pip import LocalPipCaller
 from octoprint.plugin import PluginSettings
 from octoprint.util.platform import CLOSE_FDS
+from octoprint.events import Events, EventManager
 from .constants import *
 
 if TYPE_CHECKING:
@@ -172,6 +173,7 @@ class SystemQuery:
         # noinspection PyProtectedMember
         return self._settings.get(["public_port"])
 
+
 class SystemManager:
     def __init__(self, simplyprint: SimplyPrintWebsocket) -> None:
         self.simplyprint = simplyprint
@@ -259,6 +261,8 @@ class SystemManager:
             ["server", "commands", "serverRestartCommand"]
         )
         if command:
+            self.simplyprint.close()
+            self.simplyprint.event_bus.fire(Events.SHUTDOWN)
             self._run_system_command(command, do_async=True)
 
     def stop_octoprint(self) -> None:
@@ -276,6 +280,8 @@ class SystemManager:
                 svc = restart_cmd.split()[-1]
                 command = f"sudo systemctl stop {svc}"
         if command:
+            self.simplyprint.close()
+            self.simplyprint.event_bus.fire(Events.SHUTDOWN)
             self._run_system_command(command, do_async=True)
 
     def shutdown_machine(self) -> None:
@@ -284,6 +290,8 @@ class SystemManager:
             ["server", "commands", "systemShudownCommand"]
         )
         if command:
+            self.simplyprint.close()
+            self.simplyprint.event_bus.fire(Events.SHUTDOWN)
             self._run_system_command(command, do_async=True)
 
     def reboot_machine(self) -> None:
@@ -292,6 +300,8 @@ class SystemManager:
             ["server", "commands", "systemRestartCommand"]
         )
         if command:
+            self.simplyprint.close()
+            self.simplyprint.event_bus.fire(Events.SHUTDOWN)
             self._run_system_command(command, do_async=True)
 
     def _call_pip(self, *args) -> Any:
