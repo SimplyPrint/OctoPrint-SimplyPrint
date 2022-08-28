@@ -1331,7 +1331,7 @@ class SimplyPrintWebsocket:
         self.send_sp("keepalive", None)
 
     def _setup_simplyprint_logging(self):
-        fpath = self.settings.get_plugin_logfile_path().lower()
+        fpath = self.settings.get_plugin_logfile_path()
         log_path = pathlib.Path(fpath)
         queue: SimpleQueue = SimpleQueue()
         queue_handler = logging.handlers.QueueHandler(queue)
