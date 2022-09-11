@@ -748,12 +748,15 @@ class SimplyPrintWebsocket:
                     "Sending G-Code scripts at request of SimplyPrint"
                 )
                 data = {
-                    "cancel_gcode": cur_cancel_gc,
-                    "pause_gcode": cur_pause_gc,
-                    "resume_gcode": cur_resume_gc
+                    "cancel_gcode": cur_cancel_gc.splitlines() if cur_cancel_gc else [],
+                    "pause_gcode": cur_pause_gc.splitlines() if cur_pause_gc else [],
+                    "resume_gcode": cur_resume_gc.splitlines() if cur_resume_gc else []
                 }
             self.settings.set_boolean(["info", "gcode_scripts_backed_up"], True)
-        self.send_sp("gcode_scripts", {"scripts": data})
+            if not cur_cancel_gc.startswith("; synced from SimplyPrint GCODE Macros") or \
+                    not cur_resume_gc.startswith("; synced from SimplyPrint GCODE Macros") or \
+                    not cur_pause_gc.startswith("; synced from SimplyPrint GCODE Macros"):
+                self.send_sp("gcode_scripts", {"scripts": data})
 
     def _save_gcode_scripts(self, scripts: Dict[str, str]) -> None:
         def fix_script(data: str) -> str:
