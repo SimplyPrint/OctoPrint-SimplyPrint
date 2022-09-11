@@ -759,8 +759,8 @@ class SimplyPrintWebsocket:
                 self.send_sp("gcode_scripts", {"scripts": data})
 
     def _save_gcode_scripts(self, scripts: Dict[str, str]) -> None:
-        def fix_script(data: str) -> str:
-            data = data.replace("\r\n", "\n").replace("\r", "\n")
+        def fix_script(data: list) -> str:
+            data = "\n".join(data)
             return octoprint.util.to_unicode(data)
 
         if (
