@@ -1089,7 +1089,7 @@ class SimplyPrintWebsocket:
 
     async def _handle_ai_snapshot(self, eventtime: float) -> float:
         ai_interval = self.intervals.get("ai", 0)
-        if ai_interval > 0 and self.webcam_stream.webcam_connected:
+        if ai_interval > 0 and self.webcam_stream.webcam_connected and self.printer.is_printing():
             img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
             headers = {"User-Agent": "Mozilla/5.0"}
             data = json.dumps(
@@ -1118,7 +1118,7 @@ class SimplyPrintWebsocket:
                 self.ai_timer.start(delay=td)
                 
             self.ai_timer.start(delay=ai_interval)
-        elif ai_interval == 0:
+        else:
             self.ai_timer.stop()
         return eventtime + ai_interval
 
