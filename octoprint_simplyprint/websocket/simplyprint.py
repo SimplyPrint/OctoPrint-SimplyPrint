@@ -1198,6 +1198,7 @@ class SimplyPrintWebsocket:
             self._image_delivered = False
             self.send_sp("stream", {"base": base_image})
         else:
+            self.webcam_stream.start(0)
             self._sock_logger.info("Still waiting for last image to be received by server.")
 
     def _send_installed_plugins(self) -> None:
