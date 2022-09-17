@@ -69,7 +69,6 @@ if TYPE_CHECKING:
 
 
 UPDATE_CHECK_TIME = 24. * 60. * 60
-KEEPALIVE_TIME = 96.0
 # TODO: Increase this time to something greater, perhaps 30 minutes
 CONNECTION_ERROR_LOG_TIME = 60.
 VALID_STATES= [
@@ -144,7 +143,6 @@ class SimplyPrintWebsocket:
         self.file_handler = SimplyPrintFileHandler(self)
         self.heaters: Dict[str, str] = {}
         self.missed_job_events: List[Dict[str, Any]] = []
-        self.keepalive_hdl: Optional[asyncio.TimerHandle] = None
         self.connection_task: Optional[asyncio.Task] = None
         self.reconnect_delay: float = 1.
         self.reconnect_token: Optional[str] = None
@@ -396,9 +394,6 @@ class SimplyPrintWebsocket:
                 self._logger.info(msg)
                 self.connected = False
                 self.ws = None
-                if self.keepalive_hdl is not None:
-                    self.keepalive_hdl.cancel()
-                    self.keepalive_hdl = None
                 break
 
     def _on_ws_ping(self, data: bytes = b"") -> None:
@@ -406,7 +401,6 @@ class SimplyPrintWebsocket:
 
     def _process_message(self, msg: str) -> None:
         self._sock_logger.info(f"received: {msg}")
-        self._reset_keepalive()
         try:
             packet: Dict[str, Any] = json.loads(msg)
         except json.JSONDecodeError:
@@ -766,7 +760,7 @@ class SimplyPrintWebsocket:
                     not cur_pause_gc.startswith("; synced from SimplyPrint GCODE Macros"):
                 self.send_sp("gcode_scripts", {"scripts": data})
 
-    def _save_gcode_scripts(self, scripts: Dict[str, str]) -> None:
+    def _save_gcode_scripts(self, scripts: Dict[str, list]) -> None:
         def fix_script(data: list) -> str:
             data = "\n".join(data)
             return octoprint.util.to_unicode(data)
@@ -1301,7 +1295,6 @@ class SimplyPrintWebsocket:
                 except Exception:
                     pass
             task = self._aioloop.create_task(fut_wrapper())
-            self._reset_keepalive()
             return task
         return fut
 
@@ -1336,16 +1329,6 @@ class SimplyPrintWebsocket:
         elif self.is_connected and not self.printer.is_printing():
             self.set_display_message(f"Ready", True)
         return eventtime + self.intervals["ready_message"]
-
-    def _reset_keepalive(self):
-        if self.keepalive_hdl is not None:
-            self.keepalive_hdl.cancel()
-        self.keepalive_hdl = self._aioloop.call_later(
-            KEEPALIVE_TIME, self._do_keepalive)
-
-    def _do_keepalive(self):
-        self.keepalive_hdl = None
-        self.send_sp("keepalive", None)
 
     def _setup_simplyprint_logging(self):
         fpath = self.settings.get_plugin_logfile_path()
@@ -1395,9 +1378,6 @@ class SimplyPrintWebsocket:
         self.is_closing = True
         if self.ws is not None:
             self.ws.close(1001, "Client Shutdown")
-        if self.keepalive_hdl is not None:
-            self.keepalive_hdl.cancel()
-            self.keepalive_hdl = None
         if (
             self.connection_task is not None and
             not self.connection_task.done()
