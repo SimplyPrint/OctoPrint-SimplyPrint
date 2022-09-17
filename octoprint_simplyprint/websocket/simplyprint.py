@@ -119,7 +119,8 @@ class SimplyPrintWebsocket:
             "cpu": 30.,
             "reconnect": 0,
             "ai": 60.,
-            "ready_message": 60.
+            "ready_message": 60.,
+            "ping": 20.
         }
         self.temp_timer = FlexTimer(self._handle_temperature_update)
         self.job_info_timer = FlexTimer(self._handle_job_info_update)
@@ -132,6 +133,8 @@ class SimplyPrintWebsocket:
         self.ai_timer = FlexTimer(self._handle_ai_snapshot)
         self.failed_ai_attempts = 0
         self.scores = []
+        self.ping_timer = FlexTimer(self._handle_ping)
+        self._last_ping_sent: float = 0.
         self.reset_printer_display_timer = FlexTimer(self._reset_printer_display)
         self.webcam_stream = WebcamStream(self.settings, self._send_image)
         self.amb_detect = AmbientDetect(
@@ -305,6 +308,7 @@ class SimplyPrintWebsocket:
         self.cached_events = []
         self.update_timer.start(delay=60.)
         self.cpu_timer.start()
+        self.ping_timer.start()
         if self.printer.is_operational():
             self._on_printer_connected()
         else:
@@ -476,6 +480,10 @@ class SimplyPrintWebsocket:
             self._process_demand(demand, data)
         elif event == "interval_change":
             self._set_intervals(data)
+        elif event == "pong":
+            cur_time = self._monotonic()
+            time_diff: float = cur_time - self._last_ping_sent
+            self.send_sp("latency", {"ms": int(time_diff*1000)})
         else:
             # TODO: It would be good for the backend to send an
             # event indicating that it is ready to recieve printer
@@ -1087,6 +1095,12 @@ class SimplyPrintWebsocket:
             )
         )
 
+    async def _handle_ping(self, eventtime: float) -> float:
+        ping_interval = self.intervals.get("ping", 20.)
+        self._last_ping_sent = self._monotonic()
+        self.send_sp("ping", None)
+        return eventtime + ping_interval
+
     async def _handle_ai_snapshot(self, eventtime: float) -> float:
         ai_interval = self.intervals.get("ai", 0)
         if ai_interval > 0 and self.webcam_stream.webcam_connected and self.printer.is_printing():
@@ -1370,6 +1384,7 @@ class SimplyPrintWebsocket:
         self.job_info_timer.stop()
         self.cpu_timer.stop()
         self.ai_timer.stop()
+        self.ping_timer.stop()
         self.printer_reconnect_timer.stop()
         self.update_timer.stop()
         try:
