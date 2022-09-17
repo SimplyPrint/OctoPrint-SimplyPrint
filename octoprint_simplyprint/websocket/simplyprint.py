@@ -136,6 +136,7 @@ class SimplyPrintWebsocket:
         self._last_ping_sent: float = 0.
         self.reset_printer_display_timer = FlexTimer(self._reset_printer_display)
         self.webcam_stream = WebcamStream(self.settings, self._send_image)
+        self._image_delivered = True
         self.amb_detect = AmbientDetect(
             self.cache, self._on_ambient_changed,
             self.settings.get_int(["ambient_temp"])
@@ -478,6 +479,8 @@ class SimplyPrintWebsocket:
             cur_time = self._monotonic()
             time_diff: float = cur_time - self._last_ping_sent
             self.send_sp("latency", {"ms": int(time_diff*1000)})
+        elif event == "stream_received":
+            self._image_delivered = True
         else:
             # TODO: It would be good for the backend to send an
             # event indicating that it is ready to recieve printer
@@ -523,9 +526,11 @@ class SimplyPrintWebsocket:
         elif demand == "test_webcam":
             self._loop.add_callback(self._test_webcam)
         elif demand == "stream_on":
+            self._image_delivered = True
             interval: float = args.get("interval", 1000) / 1000
             self.webcam_stream.start(interval)
         elif demand == "stream_off":
+            self._image_delivered = True
             self.webcam_stream.stop()
         elif demand == "file":
             self.set_display_message("Preparing...", True)
@@ -1189,7 +1194,11 @@ class SimplyPrintWebsocket:
         self.send_sp("webcam", wc_data)
 
     def _send_image(self, base_image: str) -> None:
-        self.send_sp("stream", {"base": base_image})
+        if self._image_delivered:
+            self._image_delivered = False
+            self.send_sp("stream", {"base": base_image})
+        else:
+            self._sock_logger.info("Still waiting for last image to be received by server.")
 
     def _send_installed_plugins(self) -> None:
         sp_plugins = self.settings.get(["sp_installed_plugins"])
