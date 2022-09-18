@@ -88,13 +88,11 @@ class WebcamStream:
                 f"Invalid webcam url, aborting stream: {self.url}"
             )
             return
-        if interval == 0:
-            self.stop()
         if self.running:
             return
         if not hasattr(self, "_loop"):
             self._loop = IOLoop.current()
-        self.interval = interval if interval > 0 else self.interval
+        self.interval = interval
         self.running = True
         self.stream_task = self._loop.add_callback(self._stream)
 
