@@ -532,6 +532,8 @@ class SimplyPrintWebsocket:
         elif demand == "stream_off":
             self._image_delivered = True
             self.webcam_stream.stop()
+        elif demand == "webcam_snapshot":
+            self._loop.add_callback(self._post_snapshot, **args)
         elif demand == "file":
             self.set_display_message("Preparing...", True)
             url: Optional[str] = args.get("url")
@@ -1095,6 +1097,18 @@ class SimplyPrintWebsocket:
             functools.partial(
                 requests.get, endpoint, data=data, headers=headers,
                 timeout=timeout
+            )
+        )
+
+    async def _post_snapshot(self, id: str) -> None:
+        img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
+        data = {"id": id, "image": img_data}
+        headers = {"User-Agent": "Mozilla/5.0"}
+        await self._loop.run_in_executor(
+            None,
+            functools.partial(
+                requests.post, "https://apirewrite.simplyprint.io/jobs/ReceiveSnapshot", data=data, headers=headers,
+                timeout=45
             )
         )
 
