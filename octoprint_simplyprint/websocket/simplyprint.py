@@ -38,7 +38,7 @@ import octoprint.server
 import octoprint.util
 from octoprint.plugin import PluginSettings
 from octoprint.printer import PrinterInterface
-from octoprint.filemanager import FileManager
+from octoprint.filemanager import FileManager, FileDestinations
 from octoprint.events import Events, EventManager
 import requests
 import datetime
@@ -538,6 +538,10 @@ class SimplyPrintWebsocket:
             if not isinstance(url, str):
                 self._logger.debug(f"Invalid url in message")
                 return
+            if self.file_manager.folder_exists(FileDestinations.LOCAL, "SimplyPrint"):
+                files = self.file_manager.list_files(FileDestinations.LOCAL, "SimplyPrint")
+                for file, data in files["local"].items():
+                    self.file_manager.remove_file(FileDestinations.LOCAL, data["path"])
             start = bool(args.get("auto_start", 0))
             self.file_handler.download_file(url, start)
         elif demand == "start_print":
