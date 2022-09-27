@@ -532,10 +532,7 @@ class SimplyPrintWebsocket:
         # elif demand == "stream_off":
         #     self._image_delivered = True
         #     self.webcam_stream.stop()
-        elif demand == "webcam_snapshot" or demand == "stream_on":
-            if demand == "stream_on":
-                args["timer"] = args.get("interval", 1000)
-                args.pop("interval")
+        elif demand == "webcam_snapshot":
             self._loop.add_callback(self._post_snapshot, **args)
         elif demand == "file":
             self.set_display_message("Preparing...", True)
