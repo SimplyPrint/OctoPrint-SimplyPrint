@@ -20,7 +20,7 @@ from __future__ import absolute_import, division, unicode_literals
 
 import json
 import requests
-import threading
+import sentry_sdk
 
 # noinspection PyPackageRequirements
 import flask
@@ -112,6 +112,8 @@ class SimplyPrint(
         self.simply_print = sp_cls(self)
 
     def on_startup(self, host, port):
+        # Initialize sentry.io for error tracking
+        self._initialize_sentry()
         # Run startup thread and run the main loop in the background
         if isinstance(self.simply_print, SimplyPrintComm):
             self.simply_print.start_startup()
@@ -145,6 +147,15 @@ class SimplyPrint(
 
         # The "Startup" event is never picked up by the plugin, as the plugin is loaded AFTER startup
         self.on_event("Startup", {})
+
+    def _initialize_sentry(self):
+        self._logger.debug("Initializing Sentry")
+        sentry_sdk.init(
+            dsn="https://c35fae8df2d74707bec50279a0bcd7ae@o1102514.ingest.sentry.io/6611344",
+            traces_sample_rate=1.0
+        )
+        if self._settings.get(["printer_id"]) != "":
+            sentry_sdk.set_user({"id": self._settings.get(["printer_id"])})
 
     def on_shutdown(self):
         if isinstance(self.simply_print, SimplyPrintComm):
@@ -187,6 +198,13 @@ class SimplyPrint(
             "printer_token": "",
             "ambient_temp": "85",
         }
+
+    def on_settings_save(self, data):
+        octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+        new_printer_id = self._settings.get(["printer_id"])
+
+        if new_printer_id != "":
+            sentry_sdk.set_user({"id": self._settings.get(["printer_id"])})
 
     def get_template_vars(self):
         return {

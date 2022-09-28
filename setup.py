@@ -33,7 +33,7 @@ plugin_url = "https://simplyprint.io/"
 plugin_license = "AGPLv3"
 
 # Any additional requirements besides OctoPrint should be listed here
-plugin_requires = ["requests", "python-crontab", "distro"]
+plugin_requires = ["requests", "python-crontab", "distro", "sentry-sdk"]
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point
