@@ -525,15 +525,16 @@ class SimplyPrintWebsocket:
                 )
         elif demand == "test_webcam":
             self._loop.add_callback(self._test_webcam)
-        elif demand == "stream_on":
-            self._image_delivered = True
-            interval: float = args.get("interval", 1000) / 1000
-            self.webcam_stream.start(interval)
-        elif demand == "stream_off":
-            self._image_delivered = True
-            self.webcam_stream.stop()
+        # elif demand == "stream_on":
+        #     self._image_delivered = True
+        #     interval: float = args.get("interval", 1000) / 1000
+        #     self.webcam_stream.start(interval)
+        # elif demand == "stream_off":
+        #     self._image_delivered = True
+        #     self.webcam_stream.stop()
         elif demand == "webcam_snapshot":
-            self._loop.add_callback(self._post_snapshot, **args)
+            if self.webcam_stream.webcam_connected:
+                self._loop.add_callback(self._post_snapshot, **args)
         elif demand == "file":
             self.set_display_message("Preparing...", True)
             url: Optional[str] = args.get("url")
@@ -1100,17 +1101,25 @@ class SimplyPrintWebsocket:
             )
         )
 
-    async def _post_snapshot(self, id: str) -> None:
-        img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
-        data = {"id": id, "image": img_data}
-        headers = {"User-Agent": "Mozilla/5.0"}
-        await self._loop.run_in_executor(
-            None,
-            functools.partial(
-                requests.post, "https://apirewrite.simplyprint.io/jobs/ReceiveSnapshot", data=data, headers=headers,
-                timeout=45
+    async def _post_snapshot(self, id: str = None, timer: float = None,
+                             endpoint: str = "https://apirewrite.simplyprint.io/jobs/ReceiveSnapshot") -> None:
+        if id is not None:
+            img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
+            data = {"id": id, "image": img_data}
+            headers = {"User-Agent": "Mozilla/5.0"}
+            await self._loop.run_in_executor(
+                None,
+                functools.partial(
+                    requests.post, endpoint, data=data, headers=headers,
+                    timeout=45
+                )
             )
-        )
+        elif timer is not None:
+            self._logger.debug("waiting to take snapshot")
+            await asyncio.sleep(timer / 1000)
+            img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
+            self._logger.debug("sending image over websocket")
+            self.send_sp("stream", {"base": img_data})
 
     async def _handle_ping(self, eventtime: float) -> float:
         ping_interval = self.intervals.get("ping", 20.)
