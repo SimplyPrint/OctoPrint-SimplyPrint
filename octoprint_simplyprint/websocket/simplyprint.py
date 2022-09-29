@@ -533,7 +533,8 @@ class SimplyPrintWebsocket:
         #     self._image_delivered = True
         #     self.webcam_stream.stop()
         elif demand == "webcam_snapshot":
-            self._loop.add_callback(self._post_snapshot, **args)
+            if self.webcam_stream.webcam_connected:
+                self._loop.add_callback(self._post_snapshot, **args)
         elif demand == "file":
             self.set_display_message("Preparing...", True)
             url: Optional[str] = args.get("url")
