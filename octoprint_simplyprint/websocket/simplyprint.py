@@ -481,6 +481,9 @@ class SimplyPrintWebsocket:
             self.send_sp("latency", {"ms": int(time_diff*1000)})
         elif event == "stream_received":
             self._image_delivered = True
+        elif event == "printer_settings":
+            if data is not None:
+                self._sync_settings_from_simplyprint(data)
         else:
             # TODO: It would be good for the backend to send an
             # event indicating that it is ready to recieve printer
@@ -617,10 +620,6 @@ class SimplyPrintWebsocket:
                 None, self.sys_manager.uninstall_plugin, args
             )
             uninstall_success.add_done_callback(_on_uninstall_finished)
-        elif demand == "printer_settings":
-            sp_settings = args.get("printer_settings")
-            if sp_settings is not None:
-                self._sync_settings_from_simplyprint(sp_settings)
         elif demand == "webcam_settings_updated":
             cam_settings = args.get("webcam_settings")
             if cam_settings is not None:
@@ -662,35 +661,35 @@ class SimplyPrintWebsocket:
         )
         if "display" in sp_settings:
             display = sp_settings["display"]
-            if "enabled" in sp_settings["display"]:
+            if "enabled" in display:
                 self.settings.set_boolean(
-                    ["display_enabled"], display["enabled"]
+                    ["display_enabled"], display["enabled"] == 1
                 )
             if "branding" in display:
                 self.settings.set_boolean(
-                    ["display_branding"], display["branding"]
+                    ["display_branding"], display["branding"] == 1
                 )
             if "while_printing_type" in display:
                 wpt = str(display["while_printing_type"])
                 self.settings.set(["display_while_printing_type"], wpt)
             if "show_status" in display:
                 self.settings.set_boolean(
-                    ["display_show_status"], display["show_status"]
+                    ["display_show_status"], display["show_status"] == 1
                 )
         if "has_power_controller" in sp_settings:
-            has_pwr = sp_settings["has_power_controller"]
+            has_pwr = sp_settings["has_power_controller"] == 1
             self.settings.set_boolean(["has_power_controller"], has_pwr)
             if has_pwr:
                 self._send_power_state()
         if "has_filament_sensor" in sp_settings:
-            has_fs = sp_settings["has_filament_sensor"]
+            has_fs = sp_settings["has_filament_sensor"] == 1
             self.settings.set_boolean(["has_filament_sensor"], has_fs)
             if has_fs:
                 self._send_filament_sensor_state()
-        self.settings.set(
-            ["info", "last_user_settings_sync"],
-            sp_settings["updated_datetime"]
-        )
+        # self.settings.set(
+        #     ["info", "last_user_settings_sync"],
+        #     sp_settings["updated_datetime"]
+        # )
         self.settings.save(trigger_event=True)
 
     def _sync_webcam_settings(self, cam_settings: Dict[str, Any]) -> None:
@@ -869,8 +868,9 @@ class SimplyPrintWebsocket:
         dest = print_data["origin"]
         path = print_data["path"]
         metadata: Dict[str, Any] = {}
-        if self.file_manager.has_analysis(dest, path):
-            metadata = self.file_manager.get_metadata(dest, path)["analysis"]
+        if dest != FileDestinations.SDCARD:
+            if self.file_manager.has_analysis(dest, path):
+                metadata = self.file_manager.get_metadata(dest, path)["analysis"]
         job_info: Dict[str, Any] = {"filename": filename}
         filament: float = 0.
         for tool, data in metadata.get("filament", {}).items():
