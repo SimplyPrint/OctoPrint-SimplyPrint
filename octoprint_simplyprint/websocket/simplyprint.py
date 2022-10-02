@@ -247,9 +247,9 @@ class SimplyPrintWebsocket:
         elif event == Events.METADATA_ANALYSIS_FINISHED:
             add_callback(self._on_metadata_update, payload)
         elif event == "plugin_firmware_check_warning":
-            add_callback(self._on_firmware_warning)
+            add_callback(self._on_firmware_warning, payload)
         elif event == "plugin_printer_safety_check_warning":
-            add_callback(self._on_firmware_warning)
+            add_callback(self._on_firmware_warning, payload)
         elif event == "plugin_pi_support_throttle_state":
             add_callback(self._on_cpu_throttled, payload)
         elif event == "plugin_bedlevelvisualizer_mesh_data_collected":
