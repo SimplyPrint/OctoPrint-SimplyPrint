@@ -465,7 +465,7 @@ class SimplyPrintWebsocket:
             self.settings.set_boolean(["is_set_up"], True)
             self.settings.set(["temp_short_setup_id"], "")
             self.settings.save(trigger_event=True)
-            self.set_display_message("Set up!", True)
+            self.set_display_message("Set up!")
             self._set_ws_url()
         elif event == "demand":
             if data is None:
@@ -898,7 +898,7 @@ class SimplyPrintWebsocket:
         self.send_sp("job_info", {"paused": True})
         self._update_state("paused")
         if self.settings.get_boolean(["display_show_status"]):
-            self.set_display_message("Paused", True)
+            self.set_display_message("Paused")
 
     def _on_print_resumed(self) -> None:
         self.job_info_timer.start()
@@ -918,7 +918,7 @@ class SimplyPrintWebsocket:
         self._send_job_event(event_payload)
         self.cache.job_info = {}
         self.current_layer = -1
-        self.set_display_message("Print Complete", True)
+        self.set_display_message("Print complete", True)
 
     def _on_metadata_update(self, payload: Dict[str, Any]) -> None:
         if (
@@ -1348,7 +1348,7 @@ class SimplyPrintWebsocket:
             return
         self.cache.message = message
         if self.settings.get_boolean(["display_branding"]):
-            prefix = "[SP] " if short_branding else "[SimplyPrint] "
+            prefix = "[SP] " if short_branding or len(message) > 7 else "[SimplyPrint] "
             message = prefix + message
         self._loop.run_in_executor(None, self.printer.commands, f"M117 {message}")
 
@@ -1364,7 +1364,7 @@ class SimplyPrintWebsocket:
         if not is_online:
             self.set_display_message(f"No Internet", True)
         elif self.is_connected and not self.printer.is_printing():
-            self.set_display_message(f"Ready", True)
+            self.set_display_message(f"Ready")
         return eventtime + self.intervals["ready_message"]
 
     def _setup_simplyprint_logging(self):
