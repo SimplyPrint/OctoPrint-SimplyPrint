@@ -1007,7 +1007,8 @@ class SimplyPrintWebsocket:
                 total = ptime + time_left
                 pct_done = int(ptime / total * 100 + .5)
         if pct_done is None and "completion" in progress:
-            pct_done = int(progress["completion"] + .5)
+            if progress["completion"] is not None:
+                pct_done = int(progress["completion"] + .5)
         if (
             pct_done is not None and
             pct_done != self.cache.job_info.get("progress", 0)
