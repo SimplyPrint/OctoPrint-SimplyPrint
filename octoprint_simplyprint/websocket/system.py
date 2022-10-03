@@ -25,10 +25,10 @@ import io
 import re
 import ipaddress
 import json
-import distro
 import psutil
 import requests
 import sarge
+import platform
 from typing import TYPE_CHECKING, Callable, List, Dict, Any, Optional, Tuple
 
 from octoprint.util.commandline import CommandlineCaller
@@ -54,7 +54,7 @@ class SystemQuery:
         info["api_version"] = api_ver
         info["python_version"] = self._get_python_version()
         info["machine"] = self._get_cpu_model()
-        info["os"] = distro.name(pretty=True)
+        info["os"] = platform.system()
         info["core_count"] = os.cpu_count()
         info["total_memory"] = psutil.virtual_memory().total
         info.update(self.get_network_info())
@@ -85,13 +85,23 @@ class SystemQuery:
         return src_ip
 
     def _get_wifi_interface(self) -> Tuple[Optional[str], Optional[str]]:
-        cmd = "iwgetid"
+        os_name = platform.system()
         try:
-            ret, stdout, stderr = self.command_line.checked_call(cmd)
-            if stdout:
-                parts = stdout[0].strip().split(maxsplit=1)
-                ssid = parts[1].split(":")[-1].strip('"')
-                return parts[0], ssid
+            if os_name == "Linux":
+                cmd = "iwgetid"
+                ret, stdout, stderr = self.command_line.checked_call(cmd)
+                if stdout:
+                    parts = stdout[0].strip().split(maxsplit=1)
+                    ssid = parts[1].split(":")[-1].strip('"')
+                    return parts[0], ssid
+            elif os_name == "Windows":
+                cmd = ["netsh", "wlan", "show", "interfaces"]
+                ret, stdout, stderr = self.command_line.checked_call(cmd)
+                if stdout:
+                    for line in stdout:
+                        if " SSID" in line:
+                            return None, line.split(":")[1].strip()
+
         except Exception:
             self._logger.exception("Failed to retreive wifi interfaces")
         return None, None

@@ -499,6 +499,8 @@ class SimplyPrintWebsocket:
                 self.intervals[key] = val / 1000.
             self._logger.debug(f"Intervals Updated: {self.intervals}")
             if ai_timer_retart and self.printer.is_printing():
+                if not hasattr(self, "ai_timer_not_before"):
+                    self.ai_timer_not_before = datetime.datetime.now() + datetime.timedelta(seconds=self.intervals.get("ai"))
                 td = 0 if datetime.datetime.now() > self.ai_timer_not_before else 120. - (self.ai_timer_not_before - datetime.datetime.now()).total_seconds()
                 self.ai_timer.stop()
                 self.ai_timer.start(delay=td)
