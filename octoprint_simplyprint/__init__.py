@@ -152,7 +152,7 @@ class SimplyPrint(
         self._logger.debug("Initializing Sentry")
         sentry_sdk.init(
             dsn="https://c35fae8df2d74707bec50279a0bcd7ae@o1102514.ingest.sentry.io/6611344",
-            traces_sample_rate=1.0
+            traces_sample_rate=0.05
         )
         if self._settings.get(["printer_id"]) != "":
             sentry_sdk.set_user({"id": self._settings.get(["printer_id"])})
