@@ -70,8 +70,8 @@ if TYPE_CHECKING:
 
 UPDATE_CHECK_TIME = 24. * 60. * 60
 # TODO: Increase this time to something greater, perhaps 30 minutes
-CONNECTION_ERROR_LOG_TIME = 60.
-VALID_STATES= [
+CONNECTION_ERROR_LOG_TIME = 60. * 60
+VALID_STATES = [
     "offline",  "operational", "printing", "cancelling",
     "pausing", "paused", "resuming", "error"
 ]
@@ -357,7 +357,7 @@ class SimplyPrintWebsocket:
                 timediff = curtime - self.last_err_log_time
                 if timediff > CONNECTION_ERROR_LOG_TIME:
                     self.last_err_log_time = curtime
-                    self._logger.exception(
+                    self._logger.info(
                         f"Failed to connect to SimplyPrint")
                 failed_attempts += 1
                 if not failed_attempts % 10:
