@@ -17,17 +17,20 @@ from __future__ import absolute_import, division, unicode_literals
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import errno
 import json
 import requests
 import sentry_sdk
 
 # noinspection PyPackageRequirements
 import flask
+import serial
+import tornado
 
 from octoprint.events import Events
 import octoprint.plugin
 import octoprint.settings
+from octoprint.util.commandline import CommandlineError
 
 from octoprint_simplyprint.websocket import SimplyPrintWebsocket
 from octoprint_simplyprint.comm import SimplyPrintComm
@@ -83,6 +86,27 @@ SIMPLYPRINT_EVENTS = [
     Events.FILE_REMOVED,
 ]
 
+IGNORED_EXCEPTIONS = [
+    # serial exceptions in octoprint.util.comm
+    (
+        serial.SerialException,
+        lambda exc, logger, plugin, cb: logger == "octoprint.util.comm",
+    ),
+    # KeyboardInterrupts
+    KeyboardInterrupt,
+    # IOErrors of any kind due to a full file system
+    (
+        IOError,
+        lambda exc, logger, plugin, cb: exc.errorgetattr(exc, "errno")  # noqa: B009
+        and exc.errno in (getattr(errno, "ENOSPC"),),  # noqa: B009
+    ),
+    # RequestExceptions of any kind
+    requests.exceptions.RequestException,
+    # Tornado WebSocketErrors of any kind
+    tornado.websocket.WebSocketError,
+    # error from windows for linux specific commands related to wifi
+    CommandlineError
+]
 
 class SimplyPrint(
     octoprint.plugin.SettingsPlugin,
@@ -150,9 +174,59 @@ class SimplyPrint(
 
     def _initialize_sentry(self):
         self._logger.debug("Initializing Sentry")
+
+        def _before_send(event, hint):
+            if "exc_info" not in hint:
+                # we only want exceptions
+                return None
+
+            handled = True
+            logger = event.get("logger", "")
+            plugin = event.get("extra", {}).get("plugin", None)
+            callback = event.get("extra", {}).get("callback", None)
+
+            for ignore in IGNORED_EXCEPTIONS:
+                if isinstance(ignore, tuple):
+                    ignored_exc, matcher = ignore
+                else:
+                    ignored_exc = ignore
+                    matcher = lambda *args: True
+
+                exc = hint["exc_info"][1]
+                if isinstance(exc, ignored_exc) and matcher(
+                    exc, logger, plugin, callback
+                ):
+                    # exception ignored for logger, plugin and/or callback
+                    return None
+
+                elif isinstance(ignore, type):
+                    if isinstance(hint["exc_info"][1], ignore):
+                        # exception ignored
+                        return None
+
+            if event.get("exception") and event["exception"].get("values"):
+                handled = not any(
+                    map(
+                        lambda x: x.get("mechanism")
+                        and not x["mechanism"].get("handled", True),
+                        event["exception"]["values"],
+                    )
+                )
+
+            if handled:
+                # error is handled, restrict further based on logger
+                if logger != "" and not (
+                    logger.startswith("octoprint.plugins.SimplyPrint") or logger.startswith("octoprint.plugins.simplyprint")
+                ):
+                    # we only want errors logged by our plugin's loggers
+                    return None
+
+            return event
+
         sentry_sdk.init(
             dsn="https://c35fae8df2d74707bec50279a0bcd7ae@o1102514.ingest.sentry.io/6611344",
-            traces_sample_rate=0.05
+            traces_sample_rate=0.05,
+            before_send=_before_send
         )
         if self._settings.get(["printer_id"]) != "":
             sentry_sdk.set_user({"id": self._settings.get(["printer_id"])})
