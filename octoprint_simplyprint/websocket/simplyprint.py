@@ -116,7 +116,7 @@ class SimplyPrintWebsocket:
             "temps": 5.,
             "temps_target": 2.5,
             "cpu": 30.,
-            "reconnect": 0,
+            "reconnect": 2.,
             "ai": 60.,
             "ready_message": 60.,
             "ping": 20.
