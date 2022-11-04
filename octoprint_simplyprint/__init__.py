@@ -268,7 +268,7 @@ class SimplyPrint(
             "public_port": "80",
             # Websocket Default Settings
             "websocket_ready": False,
-            "endpoint": "test",
+            "endpoint": "production",
             "printer_token": "",
             "ambient_temp": "85",
         }
