@@ -104,6 +104,8 @@ IGNORED_EXCEPTIONS = [
     requests.exceptions.RequestException,
     # Tornado WebSocketErrors of any kind
     tornado.websocket.WebSocketError,
+    # Tornado HTTPClientError
+    tornado.httpclient.HTTPClientError,
     # error from windows for linux specific commands related to wifi
     CommandlineError
 ]
@@ -204,22 +206,22 @@ class SimplyPrint(
                         # exception ignored
                         return None
 
-            if event.get("exception") and event["exception"].get("values"):
-                handled = not any(
-                    map(
-                        lambda x: x.get("mechanism")
-                        and not x["mechanism"].get("handled", True),
-                        event["exception"]["values"],
-                    )
-                )
-
-            if handled:
-                # error is handled, restrict further based on logger
-                if logger != "" and not (
-                    logger.startswith("octoprint.plugins.SimplyPrint") or logger.startswith("octoprint.plugins.simplyprint")
-                ):
-                    # we only want errors logged by our plugin's loggers
-                    return None
+            # if event.get("exception") and event["exception"].get("values"):
+            #     handled = not any(
+            #         map(
+            #             lambda x: x.get("mechanism")
+            #             and not x["mechanism"].get("handled", True),
+            #             event["exception"]["values"],
+            #         )
+            #     )
+            #
+            # error is handled, restrict further based on logger
+            # if handled:
+            if logger != "" and not (
+                logger.startswith("octoprint.plugins.SimplyPrint") or logger.startswith("octoprint.plugins.simplyprint")
+            ):
+                # we only want errors logged by our plugin's loggers
+                return None
 
             return event
 
