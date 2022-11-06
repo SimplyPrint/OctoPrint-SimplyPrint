@@ -215,15 +215,18 @@ class SimplyPrint(
             #         )
             #     )
             #
-            # error is handled, restrict further based on logger
             # if handled:
-            if logger != "" and not (
-                logger.startswith("octoprint.plugins.SimplyPrint") or logger.startswith("octoprint.plugins.simplyprint")
-            ):
-                # we only want errors logged by our plugin's loggers
-                return None
+            #     # error is handled, restrict further based on logger
+            #     if logger != "" and not (
+            #         logger.startswith("octoprint.plugins.SimplyPrint") or logger.startswith("octoprint.plugins.simplyprint")
+            #     ):
+            #         # we only want errors logged by our plugin's loggers
+            #         return None
 
-            return event
+            if logger.startswith("octoprint.plugins.SimplyPrint") or logger.startswith("octoprint.plugins.simplyprint"):
+                return event
+            else:
+                return None
 
         sentry_sdk.init(
             dsn="https://c35fae8df2d74707bec50279a0bcd7ae@o1102514.ingest.sentry.io/6611344",
