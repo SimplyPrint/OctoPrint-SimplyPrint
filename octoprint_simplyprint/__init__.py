@@ -231,7 +231,8 @@ class SimplyPrint(
         sentry_sdk.init(
             dsn="https://c35fae8df2d74707bec50279a0bcd7ae@o1102514.ingest.sentry.io/6611344",
             traces_sample_rate=0.05,
-            before_send=_before_send
+            before_send=_before_send,
+            release="SimplyPrint@{}".format(self._plugin_version)
         )
         if self._settings.get(["printer_id"]) != "":
             sentry_sdk.set_user({"id": self._settings.get(["printer_id"])})
