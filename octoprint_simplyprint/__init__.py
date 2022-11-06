@@ -130,11 +130,11 @@ class SimplyPrint(
         sp_cls = SimplyPrintComm
         if self._settings.get_boolean(["websocket_ready"]):
             sp_cls = SimplyPrintWebsocket
-        elif not self._settings.get_boolean(["is_set_up"]):
-            # If not setup default new accounts to the websocket
-            sp_cls = SimplyPrintWebsocket
-            self._settings.set_boolean(["websocket_ready"], True)
-            self._settings.save()
+        # elif not self._settings.get_boolean(["is_set_up"]):
+        #     # If not setup default new accounts to the websocket
+        #     sp_cls = SimplyPrintWebsocket
+        #     self._settings.set_boolean(["websocket_ready"], True)
+        #     self._settings.save()
         self.simply_print = sp_cls(self)
 
     def on_startup(self, host, port):
