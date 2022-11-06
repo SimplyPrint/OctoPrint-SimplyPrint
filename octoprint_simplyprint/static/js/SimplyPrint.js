@@ -297,7 +297,7 @@ $(function () {
             $("#settings_printerProfiles .btn").prop("disabled", true);
 
             //GCODE scripts
-            $("#settings_gcodeScripts .form-horizontal").prepend(self.ManagedBySimplyPrintAlert("The disabled fields can be changed through the SimplyPrint panel <a href='https://simplyprint.io/panel/gcode_profiles' target='_blank'>from the \"GCODE profiles\" tab</a>. The original GCODE from fields we have replaced is backed up and syncronized to SimplyPrint.", true));
+            $("#settings_gcodeScripts .form-horizontal").prepend(self.ManagedBySimplyPrintAlert("The disabled fields can be changed through the SimplyPrint panel <a href='https://simplyprint.io/panel/macros' target='_blank'>from the \"GCODE profiles\" tab</a>. The original GCODE from fields we have replaced is backed up and syncronized to SimplyPrint.", true));
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_afterPrintCancelled\"]").prop("disabled", true);
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_afterPrintPaused\"]").prop("disabled", true);
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_beforePrintResumed\"]").prop("disabled", true);

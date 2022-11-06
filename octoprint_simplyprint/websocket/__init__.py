@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, unicode_literals
 #
 # SimplyPrint
-# Copyright (C) 2020-2021  SimplyPrint ApS
+# Copyright (C) 2020-2022  SimplyPrint ApS
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -18,10 +17,6 @@ from __future__ import absolute_import, division, unicode_literals
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-SIMPLYPRINT_URL = "https://simplyprint.io/"
-UPDATE_URL = "https://request.simplyprint.io"
-API_VERSION = "0.0.3"
-WEBCAM_SNAPSHOT_URL = "https://livestream.simplyprint.io/"
-SIMPLYPRINT_PLUGIN_INSTALL_URL = "https://github.com/SimplyPrint/OctoPrint-SimplyPrint/archive/master.zip"
-WS_CHECK_ENDPOINT = f"https://api.simplyprint.io/ws_check.php"
-TEST_WS_CHECK_ENDPOINT = f"https://testapi.simplyprint.io/ws_check.php"
+from .simplyprint import SimplyPrintWebsocket
+
+__all__ = ["SimplyPrintWebsocket"]

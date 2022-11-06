@@ -45,7 +45,13 @@ from octoprint.events import Events, eventManager
 from octoprint.util.pip import LocalPipCaller
 from octoprint.util.commandline import CommandlineCaller, CommandlineError
 
-from .constants import API_VERSION, UPDATE_URL, SIMPLYPRINT_PLUGIN_INSTALL_URL
+from .constants import (
+    API_VERSION,
+    UPDATE_URL,
+    SIMPLYPRINT_PLUGIN_INSTALL_URL,
+    WS_CHECK_ENDPOINT,
+    TEST_WS_CHECK_ENDPOINT
+)
 from .util import is_octoprint_setup, url_quote, has_internet, any_demand
 from . import webcam, startup, constants
 from .monitor import Monitor
@@ -102,6 +108,7 @@ class SimplyPrintComm:
         self.main_loop_thread = None
         self.livestream_thread = None
         self.next_check_update = datetime.date.today().day + 1
+        self.next_check_websocket = 0
 
         # This uses OctoPrint's built in pip caller, exactly the same as PGMR/SWU use it
         self._pip_caller = LocalPipCaller(
@@ -123,6 +130,15 @@ class SimplyPrintComm:
         while self.run_loop:
             start_time = time.time()
             self._logger.debug("Request... {} times per minute".format(self.times_per_minute))
+
+            # Check to see if the websocket is enabled
+            if self.ws_enabled_check(start_time):
+                # Disable future checks and notify
+                self._logger.info("SimplyPrint Websocket detected, making switch...")
+                self.next_check_websocket = start_time + 999999999.
+                self.plugin.notify_websocket_ready()
+                self.run_loop = False
+                break
 
             # Check for update will only run each day
             self.update_check()
@@ -223,6 +239,29 @@ class SimplyPrintComm:
         if datetime.date.today() == self.next_check_update:
             self.check_for_updates()
             self.next_check_update = datetime.date.today().day + 1
+
+    def ws_enabled_check(self, run_time):
+        # Check to see if the websocket is enabled.  If so, we will reload
+        if (self.next_check_websocket > 0 and
+            run_time < self.next_check_websocket + 600.
+        ):
+            return False
+        self.next_check_websocket = run_time + 600.
+        url = WS_CHECK_ENDPOINT
+        if self._settings.get(["endpoint"]) == "test":
+            url = TEST_WS_CHECK_ENDPOINT
+        headers = {
+            "User-Agent": "OctoPrint-SimplyPrint/{}".format(self.plugin._plugin_version),
+            "Connection": "close",
+            "Accept": "application/json"
+        }
+        try:
+            resp = requests.get(url, headers=headers, timeout=1.)
+            resp.raise_for_status()
+            use_ws = resp.json()["use_ws"]
+            return use_ws
+        except Exception:
+            return False
 
     def _simply_get(self, url):
         url = url.replace(" ", "%20")
