@@ -77,7 +77,7 @@ VALID_STATES = [
 ]
 PRE_SETUP_EVENTS = [
     "connection", "state_change", "shutdown", "machine_data", "keepalive",
-    "firmware"
+    "firmware", "installed_plugins"
 ]
 
 class SimplyPrintWebsocket:
@@ -1199,9 +1199,10 @@ class SimplyPrintWebsocket:
 
     def _on_firmware_warning(self, payload: Dict[str, Any]) -> None:
         self.cache.firmware_warning = payload
-        fw_info = self.cache.firmware_info
-        fw_info["unsafe"] = True
-        self.send_sp("firmware", fw_info)
+        # fw_info = self.cache.firmware_info
+        # fw_info["unsafe"] = True
+        # self.send_sp("firmware", fw_info)
+        self.send_sp("firmware_warning", payload)
 
     def _send_firmware_data(self, payload: Dict[str, Any]) -> None:
         fw_info = {"fw": payload, "raw": True, "unsafe": False}
