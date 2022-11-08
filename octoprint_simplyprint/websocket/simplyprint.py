@@ -599,16 +599,17 @@ class SimplyPrintWebsocket:
         elif demand == "plugin_install":
             def _on_install_finished(install_success: asyncio.Future):
                 if install_success.result():
-                    self._logger.info("Restarting OctoPrint after plugin install.")
+                    self._logger.info("Restarting OctoPrint after plugin install(s).")
                     self._loop.run_in_executor(
                         None, self.sys_manager.restart_octoprint
                     )
                 else:
                     self._logger.debug("Failed to install plugin")
-            install_success: asyncio.Future = self._loop.run_in_executor(  # type: ignore
-                None, self.sys_manager.install_plugin, args
-            )
-            install_success.add_done_callback(_on_install_finished)
+            if args.get("plugins", False):
+                install_success: asyncio.Future = self._loop.run_in_executor(  # type: ignore
+                    None, self.sys_manager.install_plugin, args["plugins"]
+                )
+                install_success.add_done_callback(_on_install_finished)
         elif demand == "plugin_uninstall":
             def _on_uninstall_finished(uninstall_success: asyncio.Future):
                 if uninstall_success.result():
