@@ -77,7 +77,7 @@ VALID_STATES = [
 ]
 PRE_SETUP_EVENTS = [
     "connection", "state_change", "shutdown", "machine_data", "keepalive",
-    "firmware"
+    "firmware", "installed_plugins", "firmware_warning"
 ]
 
 class SimplyPrintWebsocket:
@@ -599,16 +599,17 @@ class SimplyPrintWebsocket:
         elif demand == "plugin_install":
             def _on_install_finished(install_success: asyncio.Future):
                 if install_success.result():
-                    self._logger.info("Restarting OctoPrint after plugin install.")
+                    self._logger.info("Restarting OctoPrint after plugin install(s).")
                     self._loop.run_in_executor(
                         None, self.sys_manager.restart_octoprint
                     )
                 else:
                     self._logger.debug("Failed to install plugin")
-            install_success: asyncio.Future = self._loop.run_in_executor(  # type: ignore
-                None, self.sys_manager.install_plugin, args
-            )
-            install_success.add_done_callback(_on_install_finished)
+            if args.get("plugins", False):
+                install_success: asyncio.Future = self._loop.run_in_executor(  # type: ignore
+                    None, self.sys_manager.install_plugin, args["plugins"]
+                )
+                install_success.add_done_callback(_on_install_finished)
         elif demand == "plugin_uninstall":
             def _on_uninstall_finished(uninstall_success: asyncio.Future):
                 if uninstall_success.result():
@@ -1199,9 +1200,10 @@ class SimplyPrintWebsocket:
 
     def _on_firmware_warning(self, payload: Dict[str, Any]) -> None:
         self.cache.firmware_warning = payload
-        fw_info = self.cache.firmware_info
-        fw_info["unsafe"] = True
-        self.send_sp("firmware", fw_info)
+        # fw_info = self.cache.firmware_info
+        # fw_info["unsafe"] = True
+        # self.send_sp("firmware", fw_info)
+        self.send_sp("firmware_warning", payload)
 
     def _send_firmware_data(self, payload: Dict[str, Any]) -> None:
         fw_info = {"fw": payload, "raw": True, "unsafe": False}
@@ -1249,7 +1251,8 @@ class SimplyPrintWebsocket:
                     "name": plugin.name,
                     "author": plugin.author,
                     "version": plugin.version,
-                    "sp_installed": plugin.name in sp_plugins or is_sp,
+                    "sp_installed": plugin.key in sp_plugins or is_sp,
+
                     "pip_name": pinfo.origin.package_name
                 })
         self.send_sp("installed_plugins", {"plugins": installed_plugins})
