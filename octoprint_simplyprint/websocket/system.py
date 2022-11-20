@@ -213,29 +213,33 @@ class SystemManager:
         if self.install_plugin(data):
             self.restart_octoprint()
 
-    def install_plugin(self, plugin_data: Dict[str, str]) -> bool:
-        name = plugin_data['name']
-        url = plugin_data["install_url"]
-        self.logger.info(
-            f"Installing OctoPrint Plugin '{name}' at "
-            f"request from SimplyPrint from {url}"
-        )
-        key = plugin_data.get("key")
-        if key is not None and key not in self.installed_plugins:
-            self.installed_plugins.append(key)
-            self.settings.set(["sp_installed_plugins"], self.installed_plugins)
-            self.settings.save()
-        args: List[str] = ["install", url, "--no-cache-dir"]
-        try:
-            code, stdout, stderr = self._call_pip(*args)
-        except Exception:
-            self.logger.exception(f"Failed to install plugin: {name}")
-            return False
-        if code != 0:
-            self.logger.error(
-                f"Failed to install plugin {name}, returned with {code}\n"
-                f"{stdout}\n{stderr}"
+    def install_plugin(self, plugins: List[Dict[str, str]]) -> bool:
+        install_error = False
+        for plugin_data in plugins:
+            name = plugin_data['name']
+            url = plugin_data["install_url"]
+            self.logger.info(
+                f"Installing OctoPrint Plugin '{name}' at "
+                f"request from SimplyPrint from {url}"
             )
+            key = plugin_data.get("key")
+            if key is not None and key not in self.installed_plugins:
+                self.installed_plugins.append(key)
+                self.settings.set(["sp_installed_plugins"], self.installed_plugins)
+                self.settings.save()
+            args: List[str] = ["install", url, "--no-cache-dir"]
+            try:
+                code, stdout, stderr = self._call_pip(*args)
+            except Exception:
+                self.logger.exception(f"Failed to install plugin: {name}")
+                install_error = True
+            if code != 0:
+                self.logger.error(
+                    f"Failed to install plugin {name}, returned with {code}\n"
+                    f"{stdout}\n{stderr}"
+                )
+                install_error = True
+        if install_error:
             return False
         return True
 
