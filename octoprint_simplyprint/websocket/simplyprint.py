@@ -1252,6 +1252,7 @@ class SimplyPrintWebsocket:
                     "author": plugin.author,
                     "version": plugin.version,
                     "sp_installed": plugin.key in sp_plugins or is_sp,
+
                     "pip_name": pinfo.origin.package_name
                 })
         self.send_sp("installed_plugins", {"plugins": installed_plugins})
