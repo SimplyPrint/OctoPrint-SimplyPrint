@@ -77,7 +77,7 @@ VALID_STATES = [
 ]
 PRE_SETUP_EVENTS = [
     "connection", "state_change", "shutdown", "machine_data", "keepalive",
-    "firmware", "installed_plugins"
+    "firmware", "installed_plugins", "plugin_firmware_check_warning"
 ]
 
 class SimplyPrintWebsocket:
