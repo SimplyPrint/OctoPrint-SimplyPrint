@@ -273,7 +273,7 @@ class SimplyPrint(
             "debug_logging": False,
             "public_port": "80",
             # Websocket Default Settings
-            "websocket_ready": False,
+            "websocket_ready": True,
             "endpoint": "production",
             "printer_token": "",
             "ambient_temp": "85",
