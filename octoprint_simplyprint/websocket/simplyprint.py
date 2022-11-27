@@ -345,7 +345,7 @@ class SimplyPrintWebsocket:
                 if not reachable:
                     raise Exception("SimplyPrint not Reachable")
                 self.ws = await tornado.websocket.websocket_connect(
-                    url, connect_timeout=5.
+                    url, connect_timeout=15.
                 )
                 setattr(self.ws, "on_ping", self._on_ws_ping)
                 cur_time = self._monotonic()

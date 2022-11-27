@@ -146,11 +146,11 @@ class SimplyPrintFileHandler:
                             if pct != last_pct:
                                 last_pct = pct
                                 self._update_progress(pct)
-        except Exception:
+        except Exception as e:
             self._logger.exception("Error downloading print")
             self._loop.add_callback(
                 self.socket.send_sp, "file_progress",
-                {"state": "error", "message": "Network Error"}
+                {"state": "error", "message": "Network Error", "exception": e}
             )
             return
         local = FileDestinations.LOCAL
@@ -178,11 +178,11 @@ class SimplyPrintFileHandler:
                 fparts = filename.split(".", 1)
                 ext = "gcode" if len(fparts) < 2 else fparts[-1]
                 filename = f"{fparts[0]}_copy{count}.{ext}"
-            except Exception:
+            except Exception as e:
                 self._logger.exception("Error locating file destination")
                 self._loop.add_callback(
                     self.socket.send_sp, "file_progress",
-                    {"state": "error", "message": "Error processing download"}
+                    {"state": "error", "message": "Error processing download", "exception": e}
                 )
                 return
         else:
