@@ -1106,7 +1106,7 @@ class SimplyPrintWebsocket:
         )
 
     async def _post_snapshot(self, id: str = None, timer: float = None,
-                             endpoint: str = "https://apirewrite.simplyprint.io/jobs/ReceiveSnapshot") -> None:
+                             endpoint: str = "https://api.simplyprint.io/jobs/ReceiveSnapshot") -> None:
         if id is not None:
             img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
             data = {"id": id, "image": img_data}
