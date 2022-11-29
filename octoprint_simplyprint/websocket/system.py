@@ -395,7 +395,7 @@ class SystemManager:
             )
             if not 200 <= response.status_code <= 210:
                 # Response code no good
-                self._logger.warning("Couldn't check for an OctoPrint update, API returned invalid response")
+                self.logger.warning("Couldn't check for an OctoPrint update, API returned invalid response")
                 return []
             ret: Dict[str, Any] = resp.json()
         except Exception:
