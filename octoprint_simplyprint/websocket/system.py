@@ -393,7 +393,7 @@ class SystemManager:
             resp = requests.get(
                 url, headers={"X-Api-Key": api_key}, timeout=5
             )
-            if not 200 <= response.status_code <= 210:
+            if not 200 <= resp.status_code <= 210:
                 # Response code no good
                 self.logger.warning("Couldn't check for an OctoPrint update, API returned invalid response")
                 return []
