@@ -391,12 +391,15 @@ class SystemManager:
         url = f"http://127.0.0.1:{port}/plugin/softwareupdate/check"
         try:
             resp = requests.get(
-                url, headers={"X-Api-Key": api_key}, timeout=2.
+                url, headers={"X-Api-Key": api_key}, timeout=5
             )
-            resp.raise_for_status()
+            if not 200 <= resp.status_code <= 210:
+                # Response code no good
+                self.logger.warning("Couldn't check for an OctoPrint update, API returned invalid response")
+                return []
             ret: Dict[str, Any] = resp.json()
         except Exception:
-            self.logger.exception("Error fetching OctoPrint Updates")
+            self.logger.warning("Error fetching OctoPrint Updates")
             return []
         updates: List[Dict[str, Any]] = []
         uinfo: Dict[str, Any]
