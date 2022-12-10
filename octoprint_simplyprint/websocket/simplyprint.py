@@ -656,6 +656,20 @@ class SimplyPrintWebsocket:
             self._loop.run_in_executor(
                 None, self.sys_manager.restart_octoprint
             )
+        elif demand == "goto_ws_prod":
+            self.test = False
+            self._set_ws_url()
+            self.settings.set(["endpoint"], "production")
+            self.settings.save(trigger_event=True)
+            self.close()
+            self._connect()
+        elif demand == "goto_ws_test":
+            self.test = True
+            self._set_ws_url()
+            self.settings.set(["endpoint"], "test")
+            self.settings.save(trigger_event=True)
+            self.close()
+            self._connect()
         else:
             self._logger.debug(f"Unknown demand: {demand}")
 
