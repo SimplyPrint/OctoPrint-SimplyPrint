@@ -20,6 +20,7 @@
 from __future__ import annotations
 import asyncio
 import json
+import os.path
 import pathlib
 import logging
 import functools
@@ -29,7 +30,7 @@ import tornado.websocket
 from octoprint.util import server_reachable
 from tornado.ioloop import IOLoop
 
-from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT
+from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT, LOGS_UPLOAD_URL
 from .system import SystemQuery, SystemManager
 from .webcam import WebcamStream
 from .file_handler import SimplyPrintFileHandler
@@ -659,19 +660,42 @@ class SimplyPrintWebsocket:
         elif demand == "goto_ws_prod":
             self.test = False
             self._set_ws_url()
-            self.settings.set(["endpoint"], "production")
-            self.settings.save(trigger_event=True)
+            self._save_item("endpoint", "production")
             self.close()
             self._connect()
         elif demand == "goto_ws_test":
             self.test = True
             self._set_ws_url()
-            self.settings.set(["endpoint"], "test")
-            self.settings.save(trigger_event=True)
+            self._save_item("endpoint", "test")
             self.close()
             self._connect()
+        elif demand == "send_logs":
+            if "token" in args:
+                self._loop.run_in_executor(None, self._send_requested_logs, args.get("token"), args.get("logs", []), args.get("max_body"))
         else:
             self._logger.debug(f"Unknown demand: {demand}")
+
+    def _send_requested_logs(self, token: str, logs: list[str], max_size: int) -> None:
+        url = LOGS_UPLOAD_URL + self.settings.get(["printer_id"])
+        data = {"token": token}
+        multiple_files = {}
+        total_request_size = 0
+        filename_map = {"main": "octoprint.log", "plugin_log": "plugin_SimplyPrint.log", "serial_log": "serial.log"}
+        try:
+            for file in logs:
+                filepath = os.path.join(self.settings.global_get_basefolder("logs"), filename_map[file])
+                if os.path.exists(filepath):
+                    multiple_files[file] = (filename_map[file], open(filepath, "rb"), "text/plain")
+                    total_request_size += os.path.getsize(filepath)
+            if total_request_size < max_size:
+                r = requests.post(url, data=data, files=multiple_files, timeout=900)
+                if r.status_code == 200 and r.json()["status"]:
+                    self.send_sp("logs_sent", r.json())
+            else:
+                self._logger.debug("Total log post size is too large.")
+        except Exception as e:
+            self._logger.debug(e)
+
 
     def _sync_settings_from_simplyprint(
         self, sp_settings: Dict[str, Any]

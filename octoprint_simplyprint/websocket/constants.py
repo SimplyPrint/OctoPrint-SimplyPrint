@@ -23,3 +23,5 @@ WS_PROD_ENDPOINT = "wss://ws.simplyprint.io/%s/p" % (SP_BACKEND_VERSION, )
 
 PLUGIN_INSTALL_URL = "https://github.com/SimplyPrint/OctoPrint-SimplyPrint/archive/master.zip"
 TEST_PLUGIN_INSTALL_URL = "https://github.com/Arksine/OctoPrint-SimplyPrint/dev-sp-websocket-20220414/master.zip"
+
+LOGS_UPLOAD_URL = "https://apirewrite.simplyprint.io/printers/ReceiveLogs?pid="
