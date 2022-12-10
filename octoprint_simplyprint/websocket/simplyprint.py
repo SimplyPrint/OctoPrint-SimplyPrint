@@ -420,7 +420,9 @@ class SimplyPrintWebsocket:
                     self.settings.set(["printer_id"], "")
                     self.settings.set(["printer_name"], "")
                     if "short_id" in data:
-                        self.settings.set(["temp_short_setup_id"], data["short_id"])
+                        short_id = data.get("short_id")
+                        self.settings.set(["temp_short_setup_id"], short_id)
+                        self.set_display_message(f"Setup: {short_id}")
                     self.settings.save(trigger_event=True)
                 interval = data.get("interval")
                 self._set_intervals(interval)
@@ -453,6 +455,7 @@ class SimplyPrintWebsocket:
                 self._logger.debug(f"Invalid short_id received: {short_id}")
             else:
                 self.settings.set(["temp_short_setup_id"], data["short_id"])
+                self.set_display_message(f"Setup: {short_id}")
                 self.settings.save(trigger_event=True)
             self._set_ws_url()
         elif event == "complete_setup":
@@ -1342,7 +1345,7 @@ class SimplyPrintWebsocket:
 
     def set_display_message(self, message: str, short_branding=False) -> None:
         enabled = self.settings.get_boolean(["display_enabled"])
-        if not self.is_set_up or not enabled:
+        if (not self.is_set_up or not enabled) and not message.startswith("Setup:"):
             return
         if not isinstance(message, str):
             try:
