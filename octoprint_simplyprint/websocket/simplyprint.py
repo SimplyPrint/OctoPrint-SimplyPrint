@@ -658,22 +658,21 @@ class SimplyPrintWebsocket:
                 None, self.sys_manager.restart_octoprint
             )
         elif demand == "goto_ws_prod":
-            self.test = False
-            self._set_ws_url()
-            self._save_item("endpoint", "production")
-            self.close()
-            self._connect()
+            self._loop.add_callback(self._switch_ws_connection, "production")
         elif demand == "goto_ws_test":
-            self.test = True
-            self._set_ws_url()
-            self._save_item("endpoint", "test")
-            self.close()
-            self._connect()
+            self._loop.add_callback(self._switch_ws_connection, "test")
         elif demand == "send_logs":
             if "token" in args:
                 self._loop.run_in_executor(None, self._send_requested_logs, args.get("token"), args.get("logs", []), args.get("max_body"))
         else:
             self._logger.debug(f"Unknown demand: {demand}")
+
+    def _switch_ws_connection(self, endpoint: str) -> None:
+        self._logger.debug(f"Switching to {endpoint} endpoint.")
+        self.test = (endpoint == "test")
+        self._set_ws_url()
+        self._save_item("endpoint", endpoint)
+        self.ws.close(1000, "Switching endpoint")
 
     def _send_requested_logs(self, token: str, logs: list[str], max_size: int) -> None:
         url = LOGS_UPLOAD_URL + self.settings.get(["printer_id"])
