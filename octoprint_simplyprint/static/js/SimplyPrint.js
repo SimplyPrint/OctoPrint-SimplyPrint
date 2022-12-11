@@ -66,6 +66,15 @@ $(function () {
 
         self.loading = ko.observable(true);
 
+        self.ws_connected_server = ko.observable();
+        self.current_endpoint = ko.observable();
+        self.SimplyPrintPanelURL = ko.pureComputed(function(){
+            return (self.current_endpoint() === "test") ? "https://rewrite.simplyprint.io/panel" : "https://simplyprint.io/panel";
+        });
+        self.SimplyPrintEndpoint = ko.pureComputed(function(){
+            return "SimplyPrint active on " + self.current_endpoint() + " endpoint.";
+        });
+
         self.onAfterBinding = function () {
             // Chose #wizard_plugin_corewizard_onlinecheck because it seemed likely it would be there for all first time
             if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up() && !$('#wizard_plugin_corewizard_onlinecheck').length) {
@@ -78,14 +87,14 @@ $(function () {
             }
 
             self.loading(false);
-        }
+        };
 
         self.onWizardFinish = function(){
             // Show the welcome dialog if corewizard was open
             if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up() && $('#wizard_plugin_corewizard_onlinecheck').length) {
                 $('#SimplyPrintWelcome').modal("show");
             }
-        }
+        };
 
         function SetupRecommended() {
             setTimeout(function () {
@@ -112,7 +121,7 @@ $(function () {
                     SetupRecommended();
                 }
             });
-        }
+        };
 
         $("body").on("click", "#navbar_systemmenu ul li:nth-child(4)", function () {
             if (!self.settingsViewModel.settings.plugins.SimplyPrint.is_set_up()) {
@@ -240,10 +249,10 @@ $(function () {
             /*$("#wizard_dialog .button-finish[name='finish']").on("click", function () {
                 $("#simplyprint_dialog").modal("show");
             });*/
-        }
+        };
 
         self.pluginsLoadedCheck = function () {
-            let pluginSettings = self.settingsViewModel.settings.plugins.SimplyPrint
+            let pluginSettings = self.settingsViewModel.settings.plugins.SimplyPrint;
             if ($("#settings_plugin_pluginmanager_pluginlist tbody").html().length) {
                 //Plugins have been loaded (being called from the API async, not loaded with the page)
                 if (typeof pluginSettings.sp_installed_plugins === "undefined" || !Array.isArray(pluginSettings.sp_installed_plugins) || !pluginSettings.sp_installed_plugins.length) {
@@ -271,14 +280,14 @@ $(function () {
             } else {
                 setTimeout(self.pluginsLoadedCheck, 500);
             }
-        }
+        };
 
         self.ManagedBySimplyPrintAlert = function (extra = "", onlyPartly = false) {
             return `<div class="alert">
                 <img alt="SimplyPrint logo (all rights reserved)" src="plugin/SimplyPrint/static/img/sp_logo.png" style="margin-left: 10px;width: 19px;">
                 ${onlyPartly ? "Some features here are managed by SimplyPrint" : "This feature is managed by SimplyPrint"}${extra.length ? ". " + extra : ""}
             </div>`;
-        }
+        };
 
         self.DisableOverwrittenUI = function () {
             //Printer profiles
@@ -301,18 +310,17 @@ $(function () {
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_afterPrintCancelled\"]").prop("disabled", true);
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_afterPrintPaused\"]").prop("disabled", true);
             $("#settings_gcodeScripts [data-bind=\"value: scripts_gcode_beforePrintResumed\"]").prop("disabled", true);
-        }
+        };
 
         self.DisableOverwrittenUI();
         self.OctoSetupChanges();
 
         // Support for installing and uninstalling the SimplyPrintRpiSoftware (CP)
-        self.requestInProgress = ko.observable()
+        self.requestInProgress = ko.observable();
         self.doSetup = function () {
-            console.log("installing")
             self.requestInProgress(true);
-            OctoPrint.simpleApiCommand("SimplyPrint", "setup")
-        }
+            OctoPrint.simpleApiCommand("SimplyPrint", "setup");
+        };
 
         self.onDataUpdaterPluginMessage = function (plugin, data) {
             if (plugin !== "SimplyPrint") {
@@ -333,19 +341,23 @@ $(function () {
                         "text": "It looks like the dependency has been uninstalled. Please reinstall the plugin or contact us at contact@simplyprint.io",
                         "type": "error",
                         "hide": false,
-                    })
+                    });
                 } else if (data.message === "sp-rpi_error") {
                     new PNotify({
                         "title": "Unknown error enabling the SimplyPrint software",
                         "text": "Please get in contact so we can resolve this! contact@simplyprint.io",
                         "type": "error",
                         "hide": false,
-                    })
+                    });
+                } else if (data.message === "sp-ws-connection") {
+                    self.ws_connected_server(data.server);
+                    self.current_endpoint(data.endpoint);
                 }
             }
-        }
+        };
+
         self.doUninstall = function () {
-            self.requestInProgress(true)
+            self.requestInProgress(true);
             OctoPrint.simpleApiCommand("SimplyPrint", "uninstall")
                 .done(function (response) {
                     self.requestInProgress(false);
@@ -362,11 +374,11 @@ $(function () {
                                 "text": "It looks like the dependency has already been uninstalled. Failed to uninstall it again or contact us at contact@simplyprint.io",
                                 "type": "error",
                                 "hide": false,
-                            })
+                            });
                         }
                     }
-                })
-        }
+                });
+        };
     }
 
     OCTOPRINT_VIEWMODELS.push({

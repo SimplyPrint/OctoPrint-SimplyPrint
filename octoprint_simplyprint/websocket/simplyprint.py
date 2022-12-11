@@ -37,7 +37,7 @@ from .file_handler import SimplyPrintFileHandler
 from ..comm.monitor import Monitor
 import octoprint.server
 import octoprint.util
-from octoprint.plugin import PluginSettings
+from octoprint.plugin import PluginSettings, PluginManager
 from octoprint.printer import PrinterInterface
 from octoprint.filemanager import FileManager, FileDestinations
 from octoprint.events import Events, EventManager
@@ -88,6 +88,7 @@ class SimplyPrintWebsocket:
         self.settings = cast(PluginSettings, plugin._settings)
         self.printer = cast(PrinterInterface, plugin._printer)
         self.file_manager = cast(FileManager, plugin._file_manager)
+        self.plugin_manager = cast(PluginManager, plugin._plugin_manager)
         self.sys_manager = SystemManager(self)
         self._event_bus = cast(EventManager, plugin._event_bus)
         if self.settings.get_boolean(["debug_logging"]):
@@ -98,6 +99,7 @@ class SimplyPrintWebsocket:
         self.connected = False
         self.is_set_up = self.settings.get(["is_set_up"])
         self._set_ws_url()
+        self.ws_connected_server = ""
 
         self.simplyprint_thread = threading.Thread(
             target=self._run_simplyprint_thread
@@ -274,6 +276,11 @@ class SimplyPrintWebsocket:
             add_callback(self.send_sp, "power_controller", {"on": True})
         elif event == "plugin_simplypowercontroller_power_off":
             add_callback(self.send_sp, "power_controller", {"on": False})
+        elif event == Events.CLIENT_AUTHED:
+            self.plugin_manager.send_plugin_message(self.plugin._identifier, {"message": "sp-ws-connection",
+                                                                              "server": self.ws_connected_server,
+                                                                              "endpoint": self.settings.get(
+                                                                                  ["endpoint"])})
         if event in [
             "plugin_pluginmanager_install_plugin",
             "plugin_pluginmanager_uninstall_plugin",
@@ -431,6 +438,10 @@ class SimplyPrintWebsocket:
                 name = data.get("name")
                 if name is not None:
                     self._save_item("printer_name", name)
+                self.ws_connected_server = data.get("region", "")
+                self.plugin_manager.send_plugin_message(self.plugin._identifier, {"message": "sp-ws-connection",
+                                                                                  "server": self.ws_connected_server,
+                                                                                  "endpoint": self.settings.get(["endpoint"])})
             self.reconnect_delay = 1.
             self._push_initial_state()
         elif event == "error":
