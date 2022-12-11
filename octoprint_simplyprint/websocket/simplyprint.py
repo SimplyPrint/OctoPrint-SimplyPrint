@@ -701,6 +701,8 @@ class SimplyPrintWebsocket:
                 r = requests.post(url, data=data, files=multiple_files, timeout=900)
                 if r.status_code == 200 and r.json()["status"]:
                     self.send_sp("logs_sent", r.json())
+                else:
+                    self._logger.debug(f"Error uploading logs, server response: {r.text}")
             else:
                 self._logger.debug("Total log post size is too large.")
         except Exception as e:
