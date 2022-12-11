@@ -1405,7 +1405,7 @@ class SimplyPrintWebsocket:
         if message == self.cache.message:
             return
         self.cache.message = message
-        if self.settings.get_boolean(["display_branding"]):
+        if self.settings.get_boolean(["display_branding"]) or not self.is_set_up:
             if short_branding or len(message) > 7:
                 prefix = "[SP] "
             else:
