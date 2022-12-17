@@ -60,7 +60,7 @@ class WebcamStream:
         headers = {"Accept": "image/jpeg"}
         try:
             resp = requests.get(
-                self.url, headers=headers, verify=False, timeout=2
+                self.url, headers=headers, verify=False, timeout=4
             )
             resp.raise_for_status()
         except Exception:
