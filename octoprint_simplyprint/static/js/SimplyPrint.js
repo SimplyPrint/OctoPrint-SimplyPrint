@@ -67,12 +67,26 @@ $(function () {
         self.loading = ko.observable(true);
 
         self.ws_connected_server = ko.observable();
+        self.is_online = ko.observable(false);
+        self.ws_connected = ko.observable(false);
         self.current_endpoint = ko.observable();
         self.SimplyPrintPanelURL = ko.pureComputed(function(){
             return (self.current_endpoint() === "test") ? "https://rewrite.simplyprint.io/panel" : "https://simplyprint.io/panel";
         });
         self.SimplyPrintEndpoint = ko.pureComputed(function(){
             return "SimplyPrint active on " + self.current_endpoint() + " endpoint.";
+        });
+        self.online_label = ko.pureComputed(function(){
+            return self.is_online() ? 'online' : 'offline';
+        });
+        self.online_label_class = ko.pureComputed(function(){
+            return self.is_online() ? 'label label-success' : 'label label-warning';
+        });
+        self.ws_connected_label = ko.pureComputed(function(){
+            return self.ws_connected() ? 'connected' : 'disconnected';
+        });
+        self.ws_connected_label_class = ko.pureComputed(function(){
+            return self.ws_connected() ? 'label label-success' : 'label label-warning';
         });
 
         self.onAfterBinding = function () {
@@ -349,9 +363,11 @@ $(function () {
                         "type": "error",
                         "hide": false,
                     });
-                } else if (data.message === "sp-ws-connection") {
+                } else if (data.message === "sp-connection") {
                     self.ws_connected_server(data.server);
                     self.current_endpoint(data.endpoint);
+                    self.is_online(data.is_online);
+                    self.ws_connected(data.ws_connected);
                 }
             }
         };

@@ -3,7 +3,7 @@
 <p>There isn't much to see in here :) All settings are located in the SimplyPrint panel, and everything that needs to be
 synced to OctoPrint and your Raspberry Pi, will do so automatically.</p>
 
-<p>Currently connected to <span class="label label-info" data-bind="text: current_endpoint"></span> endpoint on server <span class="label label-info" data-bind="text: ws_connected_server"></span>.</p>
+<p>Currently <span class="label" data-bind="text: online_label, class: online_label_class"></span> and <span class="label" data-bind="text: ws_connected_label, class: ws_connected_label_class"></span> <span data-bind="text: ws_connected() ? 'to' : 'from'"></span> <span class="label label-info" data-bind="text: current_endpoint"></span> endpoint  <!-- ko if: ws_connected -->on server <span class="label label-info" data-bind="text: ws_connected_server, css: {'label-error': ws_connected_server == 'error'}"></span><!-- /ko --></p>
 <a data-bind="attr: {href: SimplyPrintPanelURL, title: SimplyPrintEndpoint}" href="https://simplyprint.io/panel" target="_blank" class="btn btn-primary">Go to the SimplyPrint panel</a>
 
 {#
