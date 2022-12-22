@@ -77,7 +77,7 @@ $(function () {
             return "SimplyPrint active on " + self.current_endpoint() + " endpoint.";
         });
         self.online_label = ko.pureComputed(function(){
-            return self.is_online() ? 'online' : 'offline';
+            return self.is_online() ? 'has internet connection' : 'no internet connection';
         });
         self.online_label_class = ko.pureComputed(function(){
             return self.is_online() ? 'label label-success' : 'label label-warning';

@@ -382,13 +382,16 @@ class SimplyPrintWebsocket:
                         f"Failed to connect to SimplyPrint")
                 failed_attempts += 1
                 if not failed_attempts % 10:
-                    self.set_display_message("Can't reach SP", True)
-                    self.reset_printer_display_timer.start(delay=120)
                     self.is_online = await self._loop.run_in_executor(
                         None,
                         functools.partial(
                             server_reachable, "www.google.com", 80
                         ))
+                    if not self.is_online:
+                        self.set_display_message(f"No Internet", True)
+                    else:
+                        self.set_display_message("Can't reach SP", True)
+                    # self.reset_printer_display_timer.start(delay=120)
             else:
                 if failed_attempts:
                     self.set_display_message("Back online!", True)
