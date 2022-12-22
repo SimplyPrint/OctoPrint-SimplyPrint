@@ -1424,6 +1424,7 @@ class SimplyPrintWebsocket:
             except Exception:
                 return
         if message == self.cache.message:
+            self._logger.debug(f"not setting printer display, cached message: {message}")
             return
         self.cache.message = message
         if self.settings.get_boolean(["display_branding"]) or not self.is_set_up:
@@ -1432,6 +1433,7 @@ class SimplyPrintWebsocket:
             else:
                 prefix = "[SimplyPrint] "
             message = prefix + message
+        self._logger.debug(f"setting printer display: {message}")
         self._loop.run_in_executor(None, self.printer.commands, f"M117 {message}")
 
     async def _reset_printer_display(self, eventtime: float) -> float:
