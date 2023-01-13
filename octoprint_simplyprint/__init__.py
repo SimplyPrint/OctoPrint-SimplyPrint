@@ -43,6 +43,7 @@ SIMPLYPRINT_EVENTS = [
     Events.CONNECTED,
     Events.DISCONNECTING,
     Events.DISCONNECTED,
+    Events.CLIENT_AUTHED,
 
     Events.STARTUP,
     Events.SHUTDOWN,

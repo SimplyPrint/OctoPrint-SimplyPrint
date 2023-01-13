@@ -20,6 +20,7 @@
 from __future__ import annotations
 import asyncio
 import json
+import os.path
 import pathlib
 import logging
 import functools
@@ -29,14 +30,14 @@ import tornado.websocket
 from octoprint.util import server_reachable
 from tornado.ioloop import IOLoop
 
-from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT
+from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT, LOGS_UPLOAD_URL
 from .system import SystemQuery, SystemManager
 from .webcam import WebcamStream
 from .file_handler import SimplyPrintFileHandler
 from ..comm.monitor import Monitor
 import octoprint.server
 import octoprint.util
-from octoprint.plugin import PluginSettings
+from octoprint.plugin import PluginSettings, PluginManager
 from octoprint.printer import PrinterInterface
 from octoprint.filemanager import FileManager, FileDestinations
 from octoprint.events import Events, EventManager
@@ -87,6 +88,7 @@ class SimplyPrintWebsocket:
         self.settings = cast(PluginSettings, plugin._settings)
         self.printer = cast(PrinterInterface, plugin._printer)
         self.file_manager = cast(FileManager, plugin._file_manager)
+        self.plugin_manager = cast(PluginManager, plugin._plugin_manager)
         self.sys_manager = SystemManager(self)
         self._event_bus = cast(EventManager, plugin._event_bus)
         if self.settings.get_boolean(["debug_logging"]):
@@ -95,8 +97,12 @@ class SimplyPrintWebsocket:
         if self.settings.get(["endpoint"]) == "test":
             self.test = True
         self.connected = False
+        self.last_connected = False
         self.is_set_up = self.settings.get(["is_set_up"])
         self._set_ws_url()
+        self.ws_connected_server = "disconnected"
+        self.is_online = False
+        self.last_is_online = False
 
         self.simplyprint_thread = threading.Thread(
             target=self._run_simplyprint_thread
@@ -273,6 +279,11 @@ class SimplyPrintWebsocket:
             add_callback(self.send_sp, "power_controller", {"on": True})
         elif event == "plugin_simplypowercontroller_power_off":
             add_callback(self.send_sp, "power_controller", {"on": False})
+        elif event == Events.CLIENT_AUTHED:
+            self.plugin_manager.send_plugin_message(self.plugin._identifier,
+                                                    {"message": "sp-connection", "ws_connected": self.connected,
+                                                     "is_online": self.is_online, "server": self.ws_connected_server,
+                                                     "endpoint": self.settings.get(["endpoint"])})
         if event in [
             "plugin_pluginmanager_install_plugin",
             "plugin_pluginmanager_uninstall_plugin",
@@ -342,6 +353,16 @@ class SimplyPrintWebsocket:
                 reachable = await self._loop.run_in_executor(
                     None, server_reachable, url_start, 80
                 )
+                self.is_online = reachable
+                if self.is_online != self.last_is_online or self.connected != self.last_connected:
+                    self.last_is_online = self.is_online
+                    self.last_connected = self.connected
+                    self.plugin_manager.send_plugin_message(self.plugin._identifier,
+                                                            {"message": "sp-connection", "ws_connected": self.connected,
+                                                             "is_online": self.is_online,
+                                                             "server": self.ws_connected_server,
+                                                             "endpoint": self.settings.get(["endpoint"])})
+                self.ws_connected_server = "connecting..."
                 if not reachable:
                     raise Exception("SimplyPrint not Reachable")
                 self.ws = await tornado.websocket.websocket_connect(
@@ -361,8 +382,16 @@ class SimplyPrintWebsocket:
                         f"Failed to connect to SimplyPrint")
                 failed_attempts += 1
                 if not failed_attempts % 10:
-                    self.set_display_message("Can't reach SP", True)
-                    self.reset_printer_display_timer.start(delay=120)
+                    self.is_online = await self._loop.run_in_executor(
+                        None,
+                        functools.partial(
+                            server_reachable, "www.google.com", 80
+                        ))
+                    if not self.is_online:
+                        self.set_display_message(f"No Internet", True)
+                    else:
+                        self.set_display_message("Can't reach SP", True)
+                    # self.reset_printer_display_timer.start(delay=120)
             else:
                 if failed_attempts:
                     self.set_display_message("Back online!", True)
@@ -371,6 +400,7 @@ class SimplyPrintWebsocket:
                 self._start_printer_reconnect()
                 await self._read_messages()
                 log_connect = True
+
             if not self.is_closing:
                 await asyncio.sleep(self.reconnect_delay)
 
@@ -420,7 +450,9 @@ class SimplyPrintWebsocket:
                     self.settings.set(["printer_id"], "")
                     self.settings.set(["printer_name"], "")
                     if "short_id" in data:
-                        self.settings.set(["temp_short_setup_id"], data["short_id"])
+                        short_id = data.get("short_id")
+                        self.settings.set(["temp_short_setup_id"], short_id)
+                        self.set_display_message(f"Setup: {short_id}")
                     self.settings.save(trigger_event=True)
                 interval = data.get("interval")
                 self._set_intervals(interval)
@@ -428,12 +460,22 @@ class SimplyPrintWebsocket:
                 name = data.get("name")
                 if name is not None:
                     self._save_item("printer_name", name)
+                self.ws_connected_server = data.get("region", "disconnected")
+                if self.is_online != self.last_is_online or self.connected != self.last_connected:
+                    self.last_is_online = self.is_online
+                    self.last_connected = self.connected
+                    self.plugin_manager.send_plugin_message(self.plugin._identifier,
+                                                            {"message": "sp-connection", "ws_connected": self.connected,
+                                                             "is_online": self.is_online,
+                                                             "server": self.ws_connected_server,
+                                                             "endpoint": self.settings.get(["endpoint"])})
             self.reconnect_delay = 1.
             self._push_initial_state()
         elif event == "error":
             self._logger.info(f"SimplyPrint Connection Error: {data}")
             self.reconnect_delay = 30.
             self.reconnect_token = None
+            self.ws_connected_server = "error"
         elif event == "new_token":
             if data is None:
                 self._logger.debug("Invalid message, no data")
@@ -453,6 +495,7 @@ class SimplyPrintWebsocket:
                 self._logger.debug(f"Invalid short_id received: {short_id}")
             else:
                 self.settings.set(["temp_short_setup_id"], data["short_id"])
+                self.set_display_message(f"Setup: {short_id}")
                 self.settings.save(trigger_event=True)
             self._set_ws_url()
         elif event == "complete_setup":
@@ -530,13 +573,6 @@ class SimplyPrintWebsocket:
                 )
         elif demand == "test_webcam":
             self._loop.add_callback(self._test_webcam)
-        # elif demand == "stream_on":
-        #     self._image_delivered = True
-        #     interval: float = args.get("interval", 1000) / 1000
-        #     self.webcam_stream.start(interval)
-        # elif demand == "stream_off":
-        #     self._image_delivered = True
-        #     self.webcam_stream.stop()
         elif demand == "webcam_snapshot":
             if self.webcam_stream.webcam_connected:
                 self._loop.add_callback(self._post_snapshot, **args)
@@ -653,8 +689,46 @@ class SimplyPrintWebsocket:
             self._loop.run_in_executor(
                 None, self.sys_manager.restart_octoprint
             )
+        elif demand == "goto_ws_prod":
+            self._loop.add_callback(self._switch_ws_connection, "production")
+        elif demand == "goto_ws_test":
+            self._loop.add_callback(self._switch_ws_connection, "test")
+        elif demand == "send_logs":
+            if "token" in args:
+                self._loop.run_in_executor(None, self._send_requested_logs, args.get("token"), args.get("logs", []), args.get("max_body"))
         else:
             self._logger.debug(f"Unknown demand: {demand}")
+
+    def _switch_ws_connection(self, endpoint: str) -> None:
+        self._logger.debug(f"Switching to {endpoint} endpoint.")
+        self.test = (endpoint == "test")
+        self._set_ws_url()
+        self._save_item("endpoint", endpoint)
+        self.ws.close(1000, "Switching endpoint")
+
+    def _send_requested_logs(self, token: str, logs: list[str], max_size: int) -> None:
+        url = LOGS_UPLOAD_URL + self.settings.get(["printer_id"])
+        data = {"token": token}
+        multiple_files = {}
+        total_request_size = 0
+        filename_map = {"main": "octoprint.log", "plugin_log": "plugin_SimplyPrint.log", "serial_log": "serial.log"}
+        try:
+            for file in logs:
+                filepath = os.path.join(self.settings.global_get_basefolder("logs"), filename_map[file])
+                if os.path.exists(filepath):
+                    multiple_files[file] = (filename_map[file], open(filepath, "rb"), "text/plain")
+                    total_request_size += os.path.getsize(filepath)
+            if total_request_size < max_size:
+                r = requests.post(url, data=data, files=multiple_files, timeout=900)
+                if r.status_code == 200 and r.json()["status"]:
+                    self.send_sp("logs_sent", r.json())
+                else:
+                    self._logger.debug(f"Error uploading logs, server response: {r.text}")
+            else:
+                self._logger.debug("Total log post size is too large.")
+        except Exception as e:
+            self._logger.debug(e)
+
 
     def _sync_settings_from_simplyprint(
         self, sp_settings: Dict[str, Any]
@@ -1160,7 +1234,7 @@ class SimplyPrintWebsocket:
                 self.failed_ai_attempts += 1
                 td = ai_interval + (self.failed_ai_attempts * 5.0) if self.failed_ai_attempts <= 10 else 120.
                 self.ai_timer.start(delay=td)
-                
+
             self.ai_timer.start(delay=ai_interval)
         else:
             self.ai_timer.stop()
@@ -1342,7 +1416,7 @@ class SimplyPrintWebsocket:
 
     def set_display_message(self, message: str, short_branding=False) -> None:
         enabled = self.settings.get_boolean(["display_enabled"])
-        if not self.is_set_up or not enabled:
+        if (not self.is_set_up or not enabled) and not message.startswith("Setup:"):
             return
         if not isinstance(message, str):
             try:
@@ -1350,26 +1424,28 @@ class SimplyPrintWebsocket:
             except Exception:
                 return
         if message == self.cache.message:
+            self._logger.debug(f"not setting printer display, cached message: {message}")
             return
         self.cache.message = message
-        if self.settings.get_boolean(["display_branding"]):
+        if self.settings.get_boolean(["display_branding"]) or not self.is_set_up:
             if short_branding or len(message) > 7:
                 prefix = "[SP] "
             else:
                 prefix = "[SimplyPrint] "
             message = prefix + message
+        self._logger.debug(f"setting printer display: {message}")
         self._loop.run_in_executor(None, self.printer.commands, f"M117 {message}")
 
     async def _reset_printer_display(self, eventtime: float) -> float:
         self._logger.debug(f"resetting display at {eventtime}")
         if self.settings.get_boolean(["display_show_status"]) is False:
             self.reset_printer_display_timer.stop()
-        is_online = await self._loop.run_in_executor(
+        self.is_online = await self._loop.run_in_executor(
             None,
             functools.partial(
                 server_reachable, "www.google.com", 80
             ))
-        if not is_online:
+        if not self.is_online:
             self.set_display_message(f"No Internet", True)
         elif self.is_connected and not self.printer.is_printing():
             self.set_display_message(f"Ready")
