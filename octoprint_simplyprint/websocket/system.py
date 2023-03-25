@@ -103,7 +103,7 @@ class SystemQuery:
                             return None, line.split(":")[1].strip()
 
         except Exception:
-            self._logger.exception("Failed to retreive wifi interfaces")
+            self._logger.exception("Failed to retrieve wifi interfaces")
         return None, None
 
     def get_network_info(self) -> Dict[str, Any]:
@@ -115,59 +115,63 @@ class SystemQuery:
             "is_ethernet": True
         }
         wifi_intf, ssid = self._get_wifi_interface()
-        cmd = "ip -json address"
-        try:
-            ret, stdout, stderr = self.command_line.checked_call(cmd)
-            decoded = json.loads("\n".join(stdout))
-            for interface in decoded:
-                if (
-                    interface['operstate'] != "UP" or
-                    interface['link_type'] != "ether" or
-                    'address' not in interface
-                ):
-                    continue
-                ifname = interface["ifname"]
-                for addr in interface.get('addr_info', []):
-                    if "family" not in addr or "local" not in addr:
+        os_name = platform.system()
+        if os_name == "Linux":
+            cmd = "ip -json address"
+            try:
+                ret, stdout, stderr = self.command_line.checked_call(cmd)
+                decoded = json.loads("\n".join(stdout))
+                for interface in decoded:
+                    if (
+                        interface['operstate'] != "UP" or
+                        interface['link_type'] != "ether" or
+                        'address' not in interface
+                    ):
                         continue
-                    if addr["family"] == "inet6" and src_ip is None:
-                        ip = ipaddress.ip_address(addr["local"])
-                        if ip.is_global:
+                    ifname = interface["ifname"]
+                    for addr in interface.get('addr_info', []):
+                        if "family" not in addr or "local" not in addr:
+                            continue
+                        if addr["family"] == "inet6" and src_ip is None:
+                            ip = ipaddress.ip_address(addr["local"])
+                            if ip.is_global:
+                                netinfo["local_ip"] = addr["local"]
+                                if wifi_intf == ifname:
+                                    netinfo["is_ethernet"] = False
+                                    netinfo["ssid"] = ssid
+                                return netinfo
+                        elif src_ip == addr["local"]:
                             netinfo["local_ip"] = addr["local"]
                             if wifi_intf == ifname:
                                 netinfo["is_ethernet"] = False
                                 netinfo["ssid"] = ssid
                             return netinfo
-                    elif src_ip == addr["local"]:
-                        netinfo["local_ip"] = addr["local"]
-                        if wifi_intf == ifname:
-                            netinfo["is_ethernet"] = False
-                            netinfo["ssid"] = ssid
-                        return netinfo
-        except Exception:
-            self._logger.exception("Failed to parse network interfaces")
+            except Exception:
+                self._logger.exception("Failed to parse network interfaces")
         return netinfo
 
     def _get_cpu_model(self) -> str:
-        info_path = "/proc/cpuinfo"
-        try:
-            with io.open(info_path, "rt", encoding="utf-8") as file:
-                data = file.read()
-            cpu_items = [
-                item.strip() for item in data.split("\n\n") if item.strip()
-            ]
-            # Check for the Raspberry Pi Model
-            match = re.search(r"Model\s+:\s+(.+)", cpu_items[-1])
-            if match is not None:
-                return match.group(1).strip()
-            # Check for the CPU model typically reported by desktop
-            # class machines
-            for item in cpu_items:
-                match = re.search(r"model name\s+:\s+(.+)", item)
+        os_name = platform.system()
+        if os_name == "Linux":
+            info_path = "/proc/cpuinfo"
+            try:
+                with io.open(info_path, "rt", encoding="utf-8") as file:
+                    data = file.read()
+                cpu_items = [
+                    item.strip() for item in data.split("\n\n") if item.strip()
+                ]
+                # Check for the Raspberry Pi Model
+                match = re.search(r"Model\s+:\s+(.+)", cpu_items[-1])
                 if match is not None:
                     return match.group(1).strip()
-        except Exception:
-            pass
+                # Check for the CPU model typically reported by desktop
+                # class machines
+                for item in cpu_items:
+                    match = re.search(r"model name\s+:\s+(.+)", item)
+                    if match is not None:
+                        return match.group(1).strip()
+            except Exception:
+                pass
         return "unknown"
 
     def _get_octoprint_version(self) -> Tuple[str, str]:

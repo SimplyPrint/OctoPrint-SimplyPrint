@@ -34,7 +34,7 @@ from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT, LOGS_UPLOAD_URL
 from .system import SystemQuery, SystemManager
 from .webcam import WebcamStream
 from .file_handler import SimplyPrintFileHandler
-from ..comm.monitor import Monitor
+from octoprint_simplyprint.comm.monitor import Monitor
 import octoprint.server
 import octoprint.util
 from octoprint.plugin import PluginSettings, PluginManager
@@ -1366,7 +1366,7 @@ class SimplyPrintWebsocket:
         if self.cache.active_extruder:
             self.send_sp("tool", {"new": self.cache.active_extruder})
         if self.cache.cpu_info:
-            self.send_sp("cpu_info", self.cache.cpu_info)
+            self.send_sp("cpu", self.cache.cpu_info)
         self.send_sp("ambient", {"new": self.amb_detect.ambient})
         self._send_power_state()
         self._send_filament_sensor_state()

@@ -39,7 +39,7 @@ class WebcamStream:
     ) -> None:
         self._settings = settings
         self._logger = logging.getLogger("octoprint.plugins.simplyprint")
-        self.url: str = settings.global_get(["webcam", "snapshot"])
+        self.url: str = settings.global_get(["webcam", "snapshot"]) or settings.global_get(["plugins", "classicwebcam", "snapshot"])
         self.running = False
         self.interval: float = 1.
         self.on_image_received = image_callback

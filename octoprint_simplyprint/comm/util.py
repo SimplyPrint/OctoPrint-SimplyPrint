@@ -22,13 +22,7 @@ import socket
 
 from octoprint.settings import settings
 import octoprint.server
-
-try:
-    # Python 3
-    from urllib.parse import quote
-except ImportError:
-    # Python 2
-    from urllib import quote
+from urllib.parse import quote
 
 
 def url_quote(string):
