@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, unicode_literals
 #
 # SimplyPrint
-# Copyright (C) 2020-2021  SimplyPrint ApS
+# Copyright (C) 2020-2022  SimplyPrint ApS
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -18,20 +17,6 @@ from __future__ import absolute_import, division, unicode_literals
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import argparse
+from .simplyprint import SimplyPrintWebsocket
 
-
-def run_script(name):
-    # Currently there's only one script, but it could change :)
-    if name == "run_healthcheck":
-        from octoprint_simplyprint.local.background import run_background_check
-        run_background_check()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="SimplyPrint Local Scripts")
-    parser.add_argument("script",
-                        default=None,
-                        help="The script you want to call, currently only `run_healthcheck` is valid")
-    args = parser.parse_args()
-    run_script(args.script)
+__all__ = ["SimplyPrintWebsocket"]
