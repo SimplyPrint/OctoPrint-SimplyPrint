@@ -122,7 +122,7 @@ class SimplyPrintWebsocket:
             "temps": 5.,
             "temps_target": 2.5,
             "cpu": 30.,
-            "reconnect": 30.,
+            "reconnect": 60.,
             "ai": 60.,
             "ready_message": 60.,
             "ping": 20.
@@ -535,13 +535,13 @@ class SimplyPrintWebsocket:
 
     def _set_intervals(self, data):
         if isinstance(data, dict):
-            ai_timer_retart = False
+            ai_timer_restart = False
             for key, val in data.items():
                 if key == "ai" and val / 1000. < self.intervals.get("ai"):
-                    ai_timer_retart = True
+                    ai_timer_restart = True
                 self.intervals[key] = val / 1000.
             self._logger.debug(f"Intervals Updated: {self.intervals}")
-            if ai_timer_retart and self.printer.is_printing():
+            if ai_timer_restart and self.printer.is_printing():
                 if not hasattr(self, "ai_timer_not_before"):
                     self.ai_timer_not_before = datetime.datetime.now() + datetime.timedelta(seconds=self.intervals.get("ai"))
                 td = 0 if datetime.datetime.now() > self.ai_timer_not_before else 120. - (self.ai_timer_not_before - datetime.datetime.now()).total_seconds()
@@ -1154,7 +1154,7 @@ class SimplyPrintWebsocket:
         self.printer_reconnect_timer.start(delay=2.)
 
     async def _handle_printer_reconnect(self, eventtime: float) -> float:
-        rt = self.intervals.get("reconnect", 2.)
+        rt = self.intervals.get("reconnect", 60.)
         if not rt or self.printer.is_operational():
             self.printer_reconnect_timer.stop()
         elif self.printer.get_state_id() != "CONNECTING":

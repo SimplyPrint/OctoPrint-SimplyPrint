@@ -77,19 +77,16 @@ class SystemQuery:
         return mac_address
 
     def _get_routed_ip(self) -> Optional[str]:
-        src_ip = None
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            s.settimeout(0)
-            s.connect(('10.255.255.255', 1))
-            src_ip = s.getsockname()[0]
-        except Exception:
-            pass
-        finally:
-            s.close()
-        if src_ip == "" or src_ip == "127.0.1.1":
-            src_ip = None
-        return src_ip
+            # Connect to an external host (Google DNS server) to determine the local IP
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                local_ip = s.getsockname()[0]
+        except Exception as e:
+            print(f"Error: {e}")
+            local_ip = None
+
+        return local_ip
 
     def _get_wifi_interface(self) -> Tuple[Optional[str], Optional[str]]:
         os_name = platform.system()
