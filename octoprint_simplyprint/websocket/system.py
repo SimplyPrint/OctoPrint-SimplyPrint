@@ -58,6 +58,7 @@ class SystemQuery:
         info["core_count"] = os.cpu_count()
         info["total_memory"] = psutil.virtual_memory().total
         info.update(self.get_network_info())
+        info["mac"] = self.get_mac_address()
 
         port = self._get_public_port()
 
@@ -68,6 +69,12 @@ class SystemQuery:
 
     def _get_python_version(self) -> str:
         return ".".join(str(part) for part in sys.version_info[:3])
+
+    def get_mac_address():
+        mac_int = uuid.getnode()
+        mac_hex = "{:012x}".format(mac_int)
+        mac_address = ":".join(mac_hex[i:i + 2] for i in range(0, 12, 2)).upper()
+        return mac_address
 
     def _get_routed_ip(self) -> Optional[str]:
         src_ip = None
