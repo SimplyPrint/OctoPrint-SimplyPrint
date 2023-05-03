@@ -25,6 +25,8 @@ import io
 import re
 import ipaddress
 import json
+import uuid
+
 import psutil
 import requests
 import sarge
@@ -70,7 +72,7 @@ class SystemQuery:
     def _get_python_version(self) -> str:
         return ".".join(str(part) for part in sys.version_info[:3])
 
-    def get_mac_address():
+    def get_mac_address(self):
         mac_int = uuid.getnode()
         mac_hex = "{:012x}".format(mac_int)
         mac_address = ":".join(mac_hex[i:i + 2] for i in range(0, 12, 2)).upper()
