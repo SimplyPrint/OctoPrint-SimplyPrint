@@ -117,6 +117,7 @@ class SimplyPrintWebsocket:
         self.last_received_temps: Dict[str, float] = {}
         self.last_err_log_time: float = 0.
         self.download_progress: int = -1
+        self.last_downloaded_file = None
         self.intervals: Dict[str, float] = {
             "job": 5.,
             "temps": 5.,
@@ -582,12 +583,30 @@ class SimplyPrintWebsocket:
             if not isinstance(url, str):
                 self._logger.debug(f"Invalid url in message")
                 return
+            file_id: Optional[str] = args.get("file_id")
+            if self.last_downloaded_file != file_id or file_id is None:
+                self.last_downloaded_file = file_id
+                skip_download = False
+            else:
+                skip_download = True
+            start = bool(args.get("auto_start", 0))
+
             if self.file_manager.folder_exists(FileDestinations.LOCAL, "SimplyPrint"):
                 files = self.file_manager.list_files(FileDestinations.LOCAL, "SimplyPrint")
                 for file, data in files["local"].items():
-                    self.file_manager.remove_file(FileDestinations.LOCAL, data["path"])
-            start = bool(args.get("auto_start", 0))
+                    if skip_download is False:
+                        self._logger.debug(f"deleting locally stored file \"{file}\"")
+                        self.file_manager.remove_file(FileDestinations.LOCAL, data["path"])
+                    else:
+                        self._logger.debug(f"selecting locally stored file \"{file}\"")
+                        self.file_handler.pending_file = data["path"]
+                        if start:
+                            self._logger.debug(f"starting locally stored file \"{file}\"")
+                            self._process_demand("start_print", {})
+                            return
+
             self.file_handler.download_file(url, start)
+
         elif demand == "start_print":
             def _on_start_finished(fut: asyncio.Future):
                 if not fut.result():
