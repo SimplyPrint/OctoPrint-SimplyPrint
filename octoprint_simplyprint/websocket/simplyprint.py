@@ -1078,7 +1078,7 @@ class SimplyPrintWebsocket:
                 job_info["time"] = time_left
                 if self.settings.get_int(["display_while_printing_type"]) == 1:
                     remaining_time = str(datetime.timedelta(seconds=time_left))
-                    self.set_display_message(f"Time Remaining: {remaining_time}", True)
+                    self.set_display_message(f"{remaining_time} left", True)
             if progress.get("PrintTimeLeftOrigin", "") == "genius":
                 ptime = progress.get("printTime", 0)
                 total = ptime + time_left
