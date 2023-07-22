@@ -603,7 +603,7 @@ class SimplyPrintWebsocket:
                         if start:
                             self._logger.debug(f"starting locally stored file \"{file}\"")
                             self._process_demand("start_print", {})
-                            return
+                        return
 
             self.file_handler.download_file(url, start)
 
