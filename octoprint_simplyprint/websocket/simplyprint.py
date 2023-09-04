@@ -30,7 +30,7 @@ import tornado.websocket
 from octoprint.util import server_reachable
 from tornado.ioloop import IOLoop
 
-from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT, LOGS_UPLOAD_URL
+from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT, LOGS_TEST_UPLOAD_URL, LOGS_PROD_UPLOAD_URL
 from .system import SystemQuery, SystemManager
 from .webcam import WebcamStream
 from .file_handler import SimplyPrintFileHandler
@@ -726,7 +726,8 @@ class SimplyPrintWebsocket:
         self.ws.close(1000, "Switching endpoint")
 
     def _send_requested_logs(self, token: str, logs: list[str], max_size: int) -> None:
-        url = LOGS_UPLOAD_URL + self.settings.get(["printer_id"])
+        log_upload_url = LOGS_TEST_UPLOAD_URL if self.test else LOGS_PROD_UPLOAD_URL
+        url = log_upload_url + self.settings.get(["printer_id"])
         data = {"token": token}
         multiple_files = {}
         total_request_size = 0
