@@ -603,6 +603,9 @@ class SimplyPrintWebsocket:
                         if start:
                             self._logger.debug(f"starting locally stored file \"{file}\"")
                             self._process_demand("start_print", {})
+                        else:
+                            self._logger.debug(f"letting SP know \"{file}\" is ready")
+                            self.send_sp("file_progress",{"state": "ready"})
                         return
 
             self.file_handler.download_file(url, start)
