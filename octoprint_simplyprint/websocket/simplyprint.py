@@ -584,28 +584,30 @@ class SimplyPrintWebsocket:
                 self._logger.debug(f"Invalid url in message")
                 return
             file_id: Optional[str] = args.get("file_id")
-            if self.last_downloaded_file != file_id or file_id is None:
-                self.last_downloaded_file = file_id
-                skip_download = False
-            else:
-                skip_download = True
+            file_name: Optional[str] = args.get("file_name")
             start = bool(args.get("auto_start", 0))
+
+            if file_id != self.last_downloaded_file or self.file_manager.file_exists(FileDestinations.LOCAL, f"SimplyPrint/{file_name}") is False:
+                self.last_downloaded_file = file_id
+                self._logger.debug(f"downloading file \"{file_name}\"")
+                self.file_handler.download_file(url, start)
+            else:
+                self.file_handler.pending_file = f"SimplyPrint/{file_name}"
+                if start:
+                    self._logger.debug(f"starting locally stored file \"{file_name}\"")
+                    self._process_demand("start_print", {})
+                else:
+                    self._logger.debug(f"letting SP know \"{file_name}\" is ready")
+                    self.send_sp("file_progress", {"state": "ready"})
 
             if self.file_manager.folder_exists(FileDestinations.LOCAL, "SimplyPrint"):
                 files = self.file_manager.list_files(FileDestinations.LOCAL, "SimplyPrint")
                 for file, data in files["local"].items():
-                    if skip_download is False:
-                        self._logger.debug(f"deleting locally stored file \"{file}\"")
+                    if data["path"] != f"SimplyPrint/{file_name}":
+                        self._logger.debug(f"purging \"{file}\"")
                         self.file_manager.remove_file(FileDestinations.LOCAL, data["path"])
                     else:
-                        self._logger.debug(f"selecting locally stored file \"{file}\"")
-                        self.file_handler.pending_file = data["path"]
-                        if start:
-                            self._logger.debug(f"starting locally stored file \"{file}\"")
-                            self._process_demand("start_print", {})
-                        return
-
-            self.file_handler.download_file(url, start)
+                        self._logger.debug(f"not purging {file}")
 
         elif demand == "start_print":
             def _on_start_finished(fut: asyncio.Future):
