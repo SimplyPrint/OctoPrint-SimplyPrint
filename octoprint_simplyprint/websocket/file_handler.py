@@ -150,7 +150,7 @@ class SimplyPrintFileHandler:
             self._logger.exception("Error downloading print")
             self._loop.add_callback(
                 self.socket.send_sp, "file_progress",
-                {"state": "error", "message": "Network Error", "exception": e}
+                {"state": "error", "message": "Network Error", "exception": str(e)}
             )
             return
         local = FileDestinations.LOCAL
@@ -182,7 +182,7 @@ class SimplyPrintFileHandler:
                 self._logger.exception("Error locating file destination")
                 self._loop.add_callback(
                     self.socket.send_sp, "file_progress",
-                    {"state": "error", "message": "Error processing download", "exception": e}
+                    {"state": "error", "message": "Error processing download: " + str(e)}
                 )
                 return
         else:
