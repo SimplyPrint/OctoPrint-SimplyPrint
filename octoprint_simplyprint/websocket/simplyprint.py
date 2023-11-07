@@ -593,6 +593,9 @@ class SimplyPrintWebsocket:
                 self.file_handler.download_file(url, start)
             else:
                 self.file_handler.pending_file = f"SimplyPrint/{file_name}"
+                if not self.printer.is_current_file(self.file_handler.pending_file, False):
+                    self._logger.debug(f"re-selecting file \"{file_name}\"")
+                    self.printer.select_file(self.file_handler.pending_file, False, False)
                 if start:
                     self._logger.debug(f"starting locally stored file \"{file_name}\"")
                     self._process_demand("start_print", {})
