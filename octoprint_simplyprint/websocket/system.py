@@ -109,7 +109,7 @@ class SystemQuery:
                             return None, line.split(":")[1].strip()
 
         except Exception:
-            self._logger.exception("Failed to retrieve wifi interfaces")
+            self._logger.warning("Failed to retrieve wifi interfaces")
         return None, None
 
     def get_network_info(self) -> Dict[str, Any]:
