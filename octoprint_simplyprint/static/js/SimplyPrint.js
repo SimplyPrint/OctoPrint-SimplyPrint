@@ -347,6 +347,13 @@ $(function () {
                     "type": "success",
                     "hide": true,
                 });*/
+            } else if (data.sentry_error) {
+                new PNotify({
+                    "title": "Error initializing Sentry for SimplyPrint",
+                    "text": "It appears that Sentry was unable to initialize. This is commonly caused by Filament Manager plugin, uninstall that plugin or contact us at contact@simplyprint.io",
+                    "type": "error",
+                    "hide": false,
+                });
             } else {
                 self.requestInProgress(false);
                 if (data.message === "sp-rpi_not_available") {
