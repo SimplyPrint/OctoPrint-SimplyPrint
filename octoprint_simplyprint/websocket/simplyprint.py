@@ -1424,7 +1424,7 @@ class SimplyPrintWebsocket:
         
         # Include tracked job_id with some message types. 
         if evt_name in ("file_progress", "job_info") and self._current_job_id is not None and isinstance(data, dict):
-            data.update({"job_id", self._current_job_id})
+            data.update({"job_id": self._current_job_id})
 
         packet = {"type": evt_name, "data": data}
         if evt_name != "stream":
