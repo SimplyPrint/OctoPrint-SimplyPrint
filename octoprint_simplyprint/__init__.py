@@ -123,6 +123,7 @@ class SimplyPrint(
 
     simply_print = None
     port = "5000"
+    sentry_error = False
 
     def initialize(self):
         # Called once the plugin has been loaded by OctoPrint, all injections complete
@@ -201,14 +202,18 @@ class SimplyPrint(
             else:
                 return None
 
-        sentry_sdk.init(
-            dsn="https://c35fae8df2d74707bec50279a0bcd7ae@o1102514.ingest.sentry.io/6611344",
-            traces_sample_rate=0.01,
-            before_send=_before_send,
-            release="SimplyPrint@{}".format(self._plugin_version)
-        )
-        if self._settings.get(["printer_id"]) != "":
-            sentry_sdk.set_user({"id": self._settings.get(["printer_id"])})
+        try:
+            sentry_sdk.init(
+                dsn="https://c35fae8df2d74707bec50279a0bcd7ae@o1102514.ingest.sentry.io/6611344",
+                traces_sample_rate=0.01,
+                before_send=_before_send,
+                release="SimplyPrint@{}".format(self._plugin_version)
+            )
+            if self._settings.get(["printer_id"]) != "":
+                sentry_sdk.set_user({"id": self._settings.get(["printer_id"])})
+        except Exception as e:
+            self._logger.warning("Sentry could not be initialized.", exc_info=e)
+            self.sentry_error = True
 
     def on_shutdown(self):
         if self.simply_print is not None:
@@ -349,6 +354,8 @@ class SimplyPrint(
 
     # EventHandler mixin
     def on_event(self, event, payload):
+        if event == Events.CLIENT_OPENED and self.sentry_error:
+            self._plugin_manager.send_plugin_message(self._identifier, {"sentry_error": self.sentry_error})
         if event in SIMPLYPRINT_EVENTS:
             self.simply_print.on_event(event, payload)
 
