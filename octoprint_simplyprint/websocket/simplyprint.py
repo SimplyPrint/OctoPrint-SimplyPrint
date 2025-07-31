@@ -157,6 +157,7 @@ class SimplyPrintWebsocket:
         self._last_ping_received: float = 0.
         self.gcode_terminal_enabled: bool = False
         self.cached_events: List[Tuple[Callable, Tuple[Any, ...]]] = []
+        self._current_job_id: Optional[int] = None
 
         # XXX: The call below is for dev, remove before release
         self._setup_simplyprint_logging()
@@ -586,6 +587,9 @@ class SimplyPrintWebsocket:
             file_id: Optional[str] = args.get("file_id")
             file_name: Optional[str] = args.get("file_name")
             start = bool(args.get("auto_start", 0))
+            # Keep track of current job
+            # Consider whether to persists this across restarts
+            self._current_job_id = int(args.get("job_id", 0)) or None
 
             if file_id != self.last_downloaded_file or self.file_manager.file_exists(FileDestinations.LOCAL, f"SimplyPrint/{file_name}") is False:
                 self.last_downloaded_file = file_id
@@ -1417,6 +1421,11 @@ class SimplyPrintWebsocket:
             fut = self._aioloop.create_future()
             fut.set_result(False)
             return fut
+        
+        # Include tracked job_id with some message types. 
+        if evt_name in ("file_progress", "job_info") and self._current_job_id is not None and isinstance(data, dict):
+            data.update({"job_id": self._current_job_id})
+
         packet = {"type": evt_name, "data": data}
         if evt_name != "stream":
             self._sock_logger.info(f"sent: {packet}")

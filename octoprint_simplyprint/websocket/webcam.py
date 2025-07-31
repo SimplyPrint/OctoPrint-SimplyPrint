@@ -20,6 +20,9 @@
 from __future__ import annotations
 import asyncio
 import logging
+
+import octoprint.timelapse
+from octoprint.webcams import get_snapshot_webcam
 import requests
 import base64
 from tornado.ioloop import IOLoop
@@ -39,7 +42,7 @@ class WebcamStream:
     ) -> None:
         self._settings = settings
         self._logger = logging.getLogger("octoprint.plugins.simplyprint")
-        self.url: str = settings.global_get(["webcam", "snapshot"]) or settings.global_get(["plugins", "classicwebcam", "snapshot"])
+        self.url: str = settings.global_get(["webcam", "snapshot"])
         self.running = False
         self.interval: float = 1.
         self.on_image_received = image_callback
@@ -59,6 +62,11 @@ class WebcamStream:
     def extract_image(self) -> Optional[str]:
         headers = {"Accept": "image/jpeg"}
         try:
+            # octoprint 1.9.0+ webcam snapshot url retrieval
+            if self.url is None:
+                webcam = get_snapshot_webcam()
+                if hasattr(webcam, "config") and webcam.config.canSnapshot:
+                    self.url = webcam.config.compat.snapshot
             resp = requests.get(
                 self.url, headers=headers, verify=False, timeout=4
             )
