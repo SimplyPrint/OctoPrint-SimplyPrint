@@ -281,6 +281,12 @@ class SimplyPrintWebsocket:
             add_callback(self.send_sp, "power_controller", {"on": True})
         elif event == "plugin_simplypowercontroller_power_off":
             add_callback(self.send_sp, "power_controller", {"on": False})
+        elif event == "plugin_cancelobject_object_list":
+            add_callback(self.send_sp, "objects", payload)
+        elif event == "plugin_cancelobject_object_cancelled":
+            add_callback(self.send_sp, "cancelled_object", payload)
+        elif event == "plugin_cancelobject_current_object":
+            add_callback(self.send_sp, "current_object", payload)
         elif event == Events.CLIENT_AUTHED:
             self.plugin_manager.send_plugin_message(self.plugin._identifier,
                                                     {"message": "sp-connection", "ws_connected": self.connected,

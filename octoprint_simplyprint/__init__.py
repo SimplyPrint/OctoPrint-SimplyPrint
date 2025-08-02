@@ -79,6 +79,10 @@ SIMPLYPRINT_EVENTS = [
     "plugin_simplypowercontroller_power_on",
     "plugin_simplypowercontroller_power_off",
 
+    "plugin_cancelobject_object_list",
+    "plugin_cancelobject_object_cancelled",
+    "plugin_cancelobject_current_object",
+
     Events.METADATA_ANALYSIS_FINISHED,
 
     "plugin_firmware_check_warning",
