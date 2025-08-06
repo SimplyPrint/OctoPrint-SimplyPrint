@@ -14,7 +14,7 @@ plugin_name = "SimplyPrint"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
 # Remember to bump the version in octoprint_simplyprint/__init__.py as well
-plugin_version = "4.2.0"
+plugin_version = "4.2.1"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
@@ -24,7 +24,7 @@ plugin_description = "3D print online anywhere from (probably) the most user fri
 plugin_author = "SimplyPrint"
 
 # The plugin's author's mail address.
-plugin_author_email = "albert@simplyprint.io"
+plugin_author_email = "contact@simplyprint.io"
 
 # The plugin's homepage URL. Can be overwritten within OctoPrint's internal data via __plugin_url__ in the plugin module
 plugin_url = "https://simplyprint.io/"
