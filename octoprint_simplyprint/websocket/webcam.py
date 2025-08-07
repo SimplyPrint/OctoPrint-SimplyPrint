@@ -57,10 +57,13 @@ class WebcamStream:
         return self._connection_test_passed
 
     async def test_connection(self) -> None:
-        if not hasattr(self, "_loop"):
-            self._loop = IOLoop.current()
-        img = await self._loop.run_in_executor(None, self.extract_image)
-        self._connection_test_passed = img is not None
+        try:
+            if not hasattr(self, "_loop"):
+                self._loop = IOLoop.current()
+            img = await self._loop.run_in_executor(None, self.extract_image)
+            self._connection_test_passed = img is not None
+        except Exception as e:
+            self._logger.warning("Failed to test webcam connection", exc_info=e)
 
     def extract_image(self) -> Optional[str]:
         headers = {"Accept": "image/jpeg"}
@@ -75,11 +78,13 @@ class WebcamStream:
                     self.url, headers=headers, verify=False, timeout=4
                 )
                 resp.raise_for_status()
+                
+                return self._encode_image(resp.content)
             else:
                 self._logger.warning("Unable to determine snapshot URL")
         except Exception:
-            return None
-        return self._encode_image(resp.content)
+            pass
+        return None
 
     def _encode_image(self, image: bytes) -> str:
         return base64.b64encode(image).decode()
