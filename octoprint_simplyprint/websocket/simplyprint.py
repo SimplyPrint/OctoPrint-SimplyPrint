@@ -324,28 +324,35 @@ class SimplyPrintWebsocket:
         return self._aioloop.time()
 
     async def _initialize(self) -> None:
-        self._loop = IOLoop.current()
-        for (func, args) in self.cached_events:
-            func(*args)
-        self.cached_events = []
-        self.update_timer.start(delay=60.)
-        self.cpu_timer.start()
-        self.ping_timer.start()
-        if self.printer.is_operational():
-            self._on_printer_connected()
-        else:
-            self._update_state_from_octo()
-        self.cache.machine_data = await self._get_machine_data()
-        await self.webcam_stream.test_connection()
-        await self._connect()
+        try:
+            self._loop = IOLoop.current()
+            for (func, args) in self.cached_events:
+                func(*args)
+            self.cached_events = []
+            self.update_timer.start(delay=60.)
+            self.cpu_timer.start()
+            self.ping_timer.start()
+            if self.printer.is_operational():
+                self._on_printer_connected()
+            else:
+                self._update_state_from_octo()
+            self.cache.machine_data = await self._get_machine_data()
+            await self.webcam_stream.test_connection()
+            await self._connect()
+        except Exception as e:
+            self._logger.error("Failed to initialize SimplyPrint Plugin!", exc_info=e)
 
     async def _get_machine_data(self) -> Dict[str, Any]:
-        sys_query = SystemQuery(self.settings)
-        data = await self._loop.run_in_executor(None, sys_query.get_system_info)
-        data["ui"] = "OctoPrint"
-        data["api"] = "OctoPrint"
-        data["sp_version"] = self.plugin._plugin_version
-        return data
+        try:
+            sys_query = SystemQuery(self.settings)
+            data = await self._loop.run_in_executor(None, sys_query.get_system_info)
+            data["ui"] = "OctoPrint"
+            data["api"] = "OctoPrint"
+            data["sp_version"] = self.plugin._plugin_version
+            return data
+        except Exception as e:
+            self._logger.warning("Failed to get machine data", exc_info=e)
+            return {}
 
     async def _connect(self) -> None:
         log_connect = True
