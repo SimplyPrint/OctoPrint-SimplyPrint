@@ -157,6 +157,9 @@ class SimplyPrintWebsocket:
         self._last_ping_received: float = 0.
         self.gcode_terminal_enabled: bool = False
         self.cached_events: List[Tuple[Callable, Tuple[Any, ...]]] = []
+        self.cancel_object_helper: Optional[Callable[[Union[int, str]]]] = (
+            self.plugin_manager.get_helpers("cancelobject", "cancel_object") or {}
+        ).get("cancel_object")
         self._current_job_id: Optional[int] = None
 
         # XXX: The call below is for dev, remove before release
@@ -282,11 +285,12 @@ class SimplyPrintWebsocket:
         elif event == "plugin_simplypowercontroller_power_off":
             add_callback(self.send_sp, "power_controller", {"on": False})
         elif event == "plugin_cancelobject_object_list":
-            add_callback(self.send_sp, "objects", payload)
-        elif event == "plugin_cancelobject_object_cancelled":
-            add_callback(self.send_sp, "cancelled_object", payload)
+            skipped_objects = [obj.get("id") for obj in payload.get("object_list", []) if obj.get("cancelled", False)]
+            if len(skipped_objects) == 0:
+                return
+            add_callback(self.send_sp, "job_info", {"skipped_objects": skipped_objects})
         elif event == "plugin_cancelobject_current_object":
-            add_callback(self.send_sp, "current_object", payload)
+            add_callback(self.send_sp, "job_info", {"object": payload.get("current_object", {}).get("id")})
         elif event == Events.CLIENT_AUTHED:
             self.plugin_manager.send_plugin_message(self.plugin._identifier,
                                                     {"message": "sp-connection", "ws_connected": self.connected,
@@ -718,6 +722,16 @@ class SimplyPrintWebsocket:
             self._loop.run_in_executor(
                 None, self.sys_manager.power_off_printer
             )
+        elif demand == "skip_objects":
+            objects = args.get("objects", [])
+            if len(objects) == 0:
+                return
+            if self.cancel_object_helper is None:
+                self._logger.warning("Cancel Object helper not available, could not skip objects: %s", objects)
+                return
+            for object_id in objects:
+                self.cancel_object_helper(object_id)
+                self._logger.info(f"Cancelled object: {object_id}")
         elif demand == "disable_websocket":
             self._save_item("websocket_ready", False)
             self._loop.run_in_executor(
