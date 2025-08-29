@@ -731,7 +731,7 @@ class SimplyPrintWebsocket:
                 return
             for object_id in objects:
                 self.cancel_object_helper(object_id)
-                self._logger.info(f"Cancelled object: {object_id}")
+                self._logger.info("Cancelled object: %s", object_id)
         elif demand == "disable_websocket":
             self._save_item("websocket_ready", False)
             self._loop.run_in_executor(
