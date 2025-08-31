@@ -439,7 +439,7 @@ class SimplyPrint(
 __plugin_name__ = "SimplyPrint Cloud"
 __plugin_pythoncompat__ = ">=3.7,<4"
 # Remember to bump the version in setup.py as well
-__plugin_version__ = "4.2.2"
+__plugin_version__ = "4.2.3"
 
 
 def __plugin_load__():
