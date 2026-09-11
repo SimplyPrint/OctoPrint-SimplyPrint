@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # SimplyPrint
 # Copyright (C) 2020-2022  SimplyPrint ApS
 #
@@ -18,8 +16,8 @@
 #
 
 SP_BACKEND_VERSION = "0.1"
-WS_TEST_ENDPOINT = "wss://testws2.simplyprint.io/%s/p" % (SP_BACKEND_VERSION, )
-WS_PROD_ENDPOINT = "wss://ws.simplyprint.io/%s/p" % (SP_BACKEND_VERSION, )
+WS_TEST_ENDPOINT = f"wss://testws2.simplyprint.io/{SP_BACKEND_VERSION}/p"
+WS_PROD_ENDPOINT = f"wss://ws.simplyprint.io/{SP_BACKEND_VERSION}/p"
 
 PLUGIN_INSTALL_URL = "https://github.com/SimplyPrint/OctoPrint-SimplyPrint/archive/master.zip"
 TEST_PLUGIN_INSTALL_URL = "https://github.com/Arksine/OctoPrint-SimplyPrint/dev-sp-websocket-20220414/master.zip"

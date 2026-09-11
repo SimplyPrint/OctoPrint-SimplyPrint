@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, unicode_literals
-#
 # SimplyPrint
 # Copyright (C) 2020-2021  SimplyPrint ApS
 #
@@ -19,10 +16,10 @@ from __future__ import absolute_import, division, unicode_literals
 #
 
 import socket
-
-from octoprint.settings import settings
-import octoprint.server
 from urllib.parse import quote
+
+import octoprint.server
+from octoprint.settings import settings
 
 
 def url_quote(string):

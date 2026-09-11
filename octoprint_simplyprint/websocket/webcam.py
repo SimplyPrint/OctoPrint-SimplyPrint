@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # SimplyPrint
 # Copyright (C) 2020-2022  SimplyPrint ApS
 #
@@ -18,23 +16,22 @@
 #
 
 from __future__ import annotations
+
 import asyncio
 import logging
 
-import octoprint.timelapse
 try:
     from octoprint.webcams import get_snapshot_webcam
 except ImportError:
     get_snapshot_webcam = None
-import requests
 import base64
-from tornado.ioloop import IOLoop
-
 from typing import (
     TYPE_CHECKING,
     Callable,
-    Optional,
 )
+
+import requests
+from tornado.ioloop import IOLoop
 
 if TYPE_CHECKING:
     from octoprint.plugin import PluginSettings
@@ -49,7 +46,7 @@ class WebcamStream:
         self.running = False
         self.interval: float = 1.
         self.on_image_received = image_callback
-        self.stream_task: Optional[asyncio.Task] = None
+        self.stream_task: asyncio.Task | None = None
         self._connection_test_passed = False
 
     @property
@@ -65,7 +62,7 @@ class WebcamStream:
         except Exception as e:
             self._logger.warning("Failed to test webcam connection", exc_info=e)
 
-    def extract_image(self) -> Optional[str]:
+    def extract_image(self) -> str | None:
         headers = {"Accept": "image/jpeg"}
         try:
             # octoprint 1.9.0+ webcam snapshot url retrieval
@@ -104,7 +101,7 @@ class WebcamStream:
     def start(self, interval: float) -> None:
         if not self.url.startswith("http"):
             self._logger.info(
-                f"Invalid webcam url, aborting stream: {self.url}"
+                "Invalid webcam url, aborting stream: %s", self.url
             )
             return
         if self.running:

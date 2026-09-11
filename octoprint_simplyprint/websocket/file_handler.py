@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # SimplyPrint
 # Copyright (C) 2020-2022  SimplyPrint ApS
 #
@@ -18,36 +16,33 @@
 #
 
 from __future__ import annotations
-import requests
-import pathlib
+
 import logging
+import pathlib
+import re
 import tempfile
 import time
-import re
 from threading import Event as ThreadEvent
-from tornado.ioloop import IOLoop
-from tornado.escape import url_escape, url_unescape
-
-from octoprint.filemanager.util import DiskFileWrapper
-from octoprint.filemanager.destinations import FileDestinations
-from octoprint.events import eventManager, Events
-
-
 from typing import (
     TYPE_CHECKING,
-    Tuple,
-    Awaitable,
-    Dict,
-    List,
     Any,
+    Awaitable,
 )
+
+import requests
+from octoprint.events import Events, eventManager
+from octoprint.filemanager.destinations import FileDestinations
+from octoprint.filemanager.util import DiskFileWrapper
+from tornado.escape import url_escape, url_unescape
+from tornado.ioloop import IOLoop
+
 if TYPE_CHECKING:
     from .simplyprint import SimplyPrintWebsocket
 
 
 def escape_query_string(qs: str) -> str:
     parts = qs.split("&")
-    escaped: List[str] = []
+    escaped: list[str] = []
     for p in parts:
         item = p.split("=", 1)
         key = url_escape(item[0])
@@ -95,7 +90,7 @@ class SimplyPrintFileHandler:
 
     def _parse_content_disposition(self, data: str) -> str:
         fnr = r"filename[^;\n=]*=(['\"])?(utf-8\'\')?([^\n;]*)(?(1)\1|)"
-        matches: List[Tuple[str, str, str]] = re.findall(fnr, data)
+        matches: list[tuple[str, str, str]] = re.findall(fnr, data)
         is_utf8 = False
         filename: str = ""
         for (_, encoding, fname) in matches:
@@ -108,7 +103,8 @@ class SimplyPrintFileHandler:
             filename = fname
         self._logger.debug(
             "Content-Disposition header received: filename = "
-            f"{filename}, utf8: {is_utf8}"
+            "%s, utf8: %s",
+            filename, is_utf8
         )
         return filename
 
@@ -127,7 +123,7 @@ class SimplyPrintFileHandler:
         url = self._escape_url(url)
         self.download_progress = -1
         try:
-            kwargs = dict(allow_redirects=True, stream=True, timeout=3600.)
+            kwargs = {"allow_redirects": True, "stream": True, "timeout": 3600.}
             with requests.get(url, **kwargs) as resp:
                 resp.raise_for_status()
                 self._update_progress(0)
@@ -268,7 +264,7 @@ class SimplyPrintFileHandler:
             {"state": "downloading", "percent": percent}
         )
 
-    def check_analysis(self, payload: Dict[str, Any]) -> None:
+    def check_analysis(self, payload: dict[str, Any]) -> None:
         if self.analysis_event.is_set():
             return
         if self.printer.is_current_file(payload["path"], False):

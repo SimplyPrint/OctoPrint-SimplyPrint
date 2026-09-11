@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # SimplyPrint
 # Copyright (C) 2020-2022  SimplyPrint ApS
 #
@@ -18,54 +16,59 @@
 #
 
 from __future__ import annotations
-import asyncio
-import json
-import os.path
-import pathlib
-import logging
-import functools
-import threading
-import re
-import tornado.websocket
-from octoprint.util import server_reachable
-from tornado.ioloop import IOLoop
 
-from .constants import WS_TEST_ENDPOINT, WS_PROD_ENDPOINT, LOGS_TEST_UPLOAD_URL, LOGS_PROD_UPLOAD_URL
-from .system import SystemQuery, SystemManager
-from .webcam import WebcamStream
-from .file_handler import SimplyPrintFileHandler
-from octoprint_simplyprint.comm.monitor import Monitor
-import octoprint.server
-import octoprint.util
-from octoprint.plugin import PluginSettings, PluginManager
-from octoprint.printer import PrinterInterface
-from octoprint.filemanager import FileManager, FileDestinations
-from octoprint.events import Events, EventManager
-import requests
+import asyncio
 import datetime
+import functools
+import json
+import logging
 
 # XXX: The below imports are for inital dev and
 # debugging.  They are used to create a logger for
 # messages sent to and received from the simplyprint
 # backend
 import logging.handlers
+import os.path
+import pathlib
+import re
+import threading
 from queue import SimpleQueue
-
 from typing import (
     TYPE_CHECKING,
-    Callable,
-    Optional,
-    Awaitable,
-    Dict,
-    List,
-    Tuple,
-    Union,
     Any,
+    Awaitable,
+    Callable,
+    Union,
     cast,
 )
+
+import octoprint.server
+import octoprint.util
+import requests
+import tornado.websocket
+from octoprint.events import EventManager, Events
+from octoprint.filemanager import FileDestinations, FileManager
+from octoprint.plugin import PluginManager, PluginSettings
+from octoprint.printer import PrinterInterface
+from octoprint.util import server_reachable
+from tornado.ioloop import IOLoop
+
+from octoprint_simplyprint.comm.monitor import Monitor
+
+from .constants import (
+    LOGS_PROD_UPLOAD_URL,
+    LOGS_TEST_UPLOAD_URL,
+    WS_PROD_ENDPOINT,
+    WS_TEST_ENDPOINT,
+)
+from .file_handler import SimplyPrintFileHandler
+from .system import SystemManager, SystemQuery
+from .webcam import WebcamStream
+
 if TYPE_CHECKING:
     from tornado.websocket import WebSocketClientConnection
-    from ..import SimplyPrint
+
+    from .. import SimplyPrint
     TimerCallback = Callable[[float], Union[float, Awaitable[float]]]
 
 
@@ -111,14 +114,14 @@ class SimplyPrintWebsocket:
         self.is_closing = False
         self.is_connected = False
         self._user_input_req = False
-        self.ws: Optional[WebSocketClientConnection] = None
+        self.ws: WebSocketClientConnection | None = None
         self.cache = ReportCache()
         self.current_layer: int = -1
-        self.last_received_temps: Dict[str, float] = {}
+        self.last_received_temps: dict[str, float] = {}
         self.last_err_log_time: float = 0.
         self.download_progress: int = -1
         self.last_downloaded_file = None
-        self.intervals: Dict[str, float] = {
+        self.intervals: dict[str, float] = {
             "job": 5.,
             "temps": 5.,
             "temps_target": 2.5,
@@ -149,18 +152,18 @@ class SimplyPrintWebsocket:
             self.settings.get_int(["ambient_temp"])
         )
         self.file_handler = SimplyPrintFileHandler(self)
-        self.heaters: Dict[str, str] = {}
-        self.missed_job_events: List[Dict[str, Any]] = []
-        self.connection_task: Optional[asyncio.Task] = None
+        self.heaters: dict[str, str] = {}
+        self.missed_job_events: list[dict[str, Any]] = []
+        self.connection_task: asyncio.Task | None = None
         self.reconnect_delay: float = 1.
-        self.reconnect_token: Optional[str] = None
+        self.reconnect_token: str | None = None
         self._last_ping_received: float = 0.
         self.gcode_terminal_enabled: bool = False
-        self.cached_events: List[Tuple[Callable, Tuple[Any, ...]]] = []
-        self.cancel_object_helper: Optional[Callable[[Union[int, str]]]] = (
+        self.cached_events: list[tuple[Callable, tuple[Any, ...]]] = []
+        self.cancel_object_helper: Callable[[int | str]] | None = (
             self.plugin_manager.get_helpers("cancelobject", "cancel_object") or {}
         ).get("cancel_object")
-        self._current_job_id: Optional[int] = None
+        self._current_job_id: int | None = None
 
         # XXX: The call below is for dev, remove before release
         self._setup_simplyprint_logging()
@@ -176,7 +179,7 @@ class SimplyPrintWebsocket:
     #
     ######################################################################
 
-    def get_helpers(self, plugin_name: str) -> Optional[Dict[str, Callable]]:
+    def get_helpers(self, plugin_name: str) -> dict[str, Callable] | None:
         pm = self.plugin._plugin_manager
         return pm.get_helpers(plugin_name)  # type: ignore
 
@@ -216,7 +219,7 @@ class SimplyPrintWebsocket:
     def _queue_event(self, func: Callable, *args) -> None:
         self.cached_events.append((func, args))
 
-    def on_event(self, event: str, payload: Dict[str, Any]) -> None:
+    def on_event(self, event: str, payload: dict[str, Any]) -> None:
         if not hasattr(self, "_loop"):
             add_callback = self._queue_event
         else:
@@ -257,18 +260,13 @@ class SimplyPrintWebsocket:
             add_callback(self._send_firmware_data, payload)
         elif event == Events.METADATA_ANALYSIS_FINISHED:
             add_callback(self._on_metadata_update, payload)
-        elif event == "plugin_firmware_check_warning":
-            add_callback(self._on_firmware_warning, payload)
-        elif event == "plugin_printer_safety_check_warning":
+        elif event == "plugin_firmware_check_warning" or event == "plugin_printer_safety_check_warning":
             add_callback(self._on_firmware_warning, payload)
         elif event == "plugin_pi_support_throttle_state":
             add_callback(self._on_cpu_throttled, payload)
         elif event == "plugin_bedlevelvisualizer_mesh_data_collected":
             add_callback(self._send_mesh_data, payload["mesh"])
-        elif event == Events.FILE_SELECTED:
-            # TODO: not sure we need this one
-            pass
-        elif event == Events.FILE_REMOVED:
+        elif event == Events.FILE_SELECTED or event == Events.FILE_REMOVED:
             # TODO: not sure we need this one
             pass
         elif event == "plugin_simplyfilamentsensor_filament_loaded":
@@ -302,9 +300,11 @@ class SimplyPrintWebsocket:
             "plugin_pluginmanager_enable_plugin",
             "plugin_pluginmanager_disabled_plugin",
         ]:
-            if event == "plugin_pluginmanager_uninstall_plugin":
-                if payload.get("id", "") == "SimplyPrint":
-                    self._logger.info("The SimplyPrint plugin was uninstalled")
+            if (
+                event == "plugin_pluginmanager_uninstall_plugin" and
+                payload.get("id", "") == "SimplyPrint"
+            ):
+                self._logger.info("The SimplyPrint plugin was uninstalled")
             add_callback(self._send_installed_plugins)
 
     @property
@@ -342,7 +342,7 @@ class SimplyPrintWebsocket:
         except Exception as e:
             self._logger.error("Failed to initialize SimplyPrint Plugin!", exc_info=e)
 
-    async def _get_machine_data(self) -> Dict[str, Any]:
+    async def _get_machine_data(self) -> dict[str, Any]:
         try:
             sys_query = SystemQuery(self.settings)
             data = await self._loop.run_in_executor(None, sys_query.get_system_info)
@@ -362,7 +362,7 @@ class SimplyPrintWebsocket:
             if self.reconnect_token is not None:
                 url = f"{self.connect_url}/{self.reconnect_token}"
             if log_connect:
-                self._logger.info(f"Connecting To SimplyPrint: {url}")
+                self._logger.info("Connecting To SimplyPrint: %s", url)
                 log_connect = False
             url_start = self.connect_url[6:]
             url_start_match = re.match(r"wss://([^/]+)", self.connect_url)
@@ -387,7 +387,7 @@ class SimplyPrintWebsocket:
                 self.ws = await tornado.websocket.websocket_connect(
                     url, connect_timeout=15.
                 )
-                setattr(self.ws, "on_ping", self._on_ws_ping)
+                self.ws.on_ping = self._on_ws_ping
                 cur_time = self._monotonic()
                 self._last_ping_received = cur_time
             except asyncio.CancelledError:
@@ -398,7 +398,7 @@ class SimplyPrintWebsocket:
                 if timediff > CONNECTION_ERROR_LOG_TIME:
                     self.last_err_log_time = curtime
                     self._logger.info(
-                        f"Failed to connect to SimplyPrint")
+                        "Failed to connect to SimplyPrint")
                 failed_attempts += 1
                 if not failed_attempts % 10:
                     self.is_online = await self._loop.run_in_executor(
@@ -407,7 +407,7 @@ class SimplyPrintWebsocket:
                             server_reachable, "www.google.com", 80
                         ))
                     if not self.is_online:
-                        self.set_display_message(f"No Internet", True)
+                        self.set_display_message("No Internet", True)
                     else:
                         self.set_display_message("Can't reach SP", True)
                     # self.reset_printer_display_timer.start(delay=120)
@@ -424,7 +424,7 @@ class SimplyPrintWebsocket:
                 await asyncio.sleep(self.reconnect_delay)
 
     async def _read_messages(self) -> None:
-        message: Union[str, bytes, None]
+        message: str | bytes | None
         while self.ws is not None:
             message = await self.ws.read_message()
             if isinstance(message, str):
@@ -450,14 +450,14 @@ class SimplyPrintWebsocket:
         self._last_ping_received = self._monotonic()
 
     def _process_message(self, msg: str) -> None:
-        self._sock_logger.info(f"received: {msg}")
+        self._sock_logger.info("received: %s", msg)
         try:
-            packet: Dict[str, Any] = json.loads(msg)
+            packet: dict[str, Any] = json.loads(msg)
         except json.JSONDecodeError:
-            self._logger.debug(f"Invalid message, not JSON: {msg}")
+            self._logger.debug("Invalid message, not JSON: %s", msg)
             return
         event: str = packet.get("type", "")
-        data: Optional[Dict[str, Any]] = packet.get("data")
+        data: dict[str, Any] | None = packet.get("data")
         if event == "connected":
             self._logger.info("SimplyPrint Reports Connection Success")
             self.connected = True
@@ -491,7 +491,7 @@ class SimplyPrintWebsocket:
             self.reconnect_delay = 1.
             self._push_initial_state()
         elif event == "error":
-            self._logger.info(f"SimplyPrint Connection Error: {data}")
+            self._logger.info("SimplyPrint Connection Error: %s", data)
             self.reconnect_delay = 30.
             self.reconnect_token = None
             self.ws_connected_server = "error"
@@ -505,13 +505,13 @@ class SimplyPrintWebsocket:
                 self.settings.save()
             token = data.get("token")
             if not isinstance(token, str):
-                self._logger.info(f"Invalid token received: {token}")
+                self._logger.info("Invalid token received: %s", token)
                 return
-            self._logger.info(f"SimplyPrint Token Received")
+            self._logger.info("SimplyPrint Token Received")
             self._save_item("printer_token", token)
             short_id = data.get("short_id")
             if not isinstance(short_id, str):
-                self._logger.debug(f"Invalid short_id received: {short_id}")
+                self._logger.debug("Invalid short_id received: %s", short_id)
             else:
                 self.settings.set(["temp_short_setup_id"], data["short_id"])
                 self.set_display_message(f"Setup: {short_id}")
@@ -531,7 +531,7 @@ class SimplyPrintWebsocket:
             self._set_ws_url()
         elif event == "demand":
             if data is None:
-                self._logger.debug(f"Invalid message, no data")
+                self._logger.debug("Invalid message, no data")
                 return
             demand = data.pop("demand", "unknown")
             self._process_demand(demand, data)
@@ -550,7 +550,7 @@ class SimplyPrintWebsocket:
             # TODO: It would be good for the backend to send an
             # event indicating that it is ready to recieve printer
             # status.
-            self._logger.debug(f"Unknown event: {msg}")
+            self._logger.debug("Unknown event: %s", msg)
 
     def _set_intervals(self, data):
         if isinstance(data, dict):
@@ -559,16 +559,17 @@ class SimplyPrintWebsocket:
                 if key == "ai" and val / 1000. < self.intervals.get("ai"):
                     ai_timer_restart = True
                 self.intervals[key] = val / 1000.
-            self._logger.debug(f"Intervals Updated: {self.intervals}")
+            self._logger.debug("Intervals Updated: %s", self.intervals)
             if ai_timer_restart and self.printer.is_printing():
+                now = datetime.datetime.now(tz=datetime.timezone.utc)
                 if not hasattr(self, "ai_timer_not_before"):
-                    self.ai_timer_not_before = datetime.datetime.now() + datetime.timedelta(seconds=self.intervals.get("ai"))
-                td = 0 if datetime.datetime.now() > self.ai_timer_not_before else 120. - (self.ai_timer_not_before - datetime.datetime.now()).total_seconds()
+                    self.ai_timer_not_before = now + datetime.timedelta(seconds=self.intervals.get("ai"))
+                td = 0 if now > self.ai_timer_not_before else 120. - (self.ai_timer_not_before - now).total_seconds()
                 self.ai_timer.stop()
                 self.ai_timer.start(delay=td)
             self._start_printer_reconnect()
 
-    def _process_demand(self, demand: str, args: Dict[str, Any]) -> None:
+    def _process_demand(self, demand: str, args: dict[str, Any]) -> None:
         if demand == "pause":
             self.set_display_message("Pausing...", True)
             self._update_state("pausing")
@@ -597,12 +598,12 @@ class SimplyPrintWebsocket:
                 self._loop.add_callback(self._post_snapshot, **args)
         elif demand == "file":
             self.set_display_message("Preparing...", True)
-            url: Optional[str] = args.get("url")
+            url: str | None = args.get("url")
             if not isinstance(url, str):
-                self._logger.debug(f"Invalid url in message")
+                self._logger.debug("Invalid url in message")
                 return
-            file_id: Optional[str] = args.get("file_id")
-            file_name: Optional[str] = args.get("file_name")
+            file_id: str | None = args.get("file_id")
+            file_name: str | None = args.get("file_name")
             start = bool(args.get("auto_start", 0))
             # Keep track of current job
             # Consider whether to persists this across restarts
@@ -610,28 +611,28 @@ class SimplyPrintWebsocket:
 
             if file_id != self.last_downloaded_file or self.file_manager.file_exists(FileDestinations.LOCAL, f"SimplyPrint/{file_name}") is False:
                 self.last_downloaded_file = file_id
-                self._logger.debug(f"downloading file \"{file_name}\"")
+                self._logger.debug("downloading file \"%s\"", file_name)
                 self.file_handler.download_file(url, start)
             else:
                 self.file_handler.pending_file = f"SimplyPrint/{file_name}"
                 if not self.printer.is_current_file(self.file_handler.pending_file, False):
-                    self._logger.debug(f"re-selecting file \"{file_name}\"")
+                    self._logger.debug("re-selecting file \"%s\"", file_name)
                     self.printer.select_file(self.file_handler.pending_file, False, False)
                 if start:
-                    self._logger.debug(f"starting locally stored file \"{file_name}\"")
+                    self._logger.debug("starting locally stored file \"%s\"", file_name)
                     self._process_demand("start_print", {})
                 else:
-                    self._logger.debug(f"letting SP know \"{file_name}\" is ready")
+                    self._logger.debug("letting SP know \"%s\" is ready", file_name)
                     self.send_sp("file_progress", {"state": "ready"})
 
             if self.file_manager.folder_exists(FileDestinations.LOCAL, "SimplyPrint"):
                 files = self.file_manager.list_files(FileDestinations.LOCAL, "SimplyPrint")
                 for file, data in files["local"].items():
                     if data["path"] != f"SimplyPrint/{file_name}":
-                        self._logger.debug(f"purging \"{file}\"")
+                        self._logger.debug("purging \"%s\"", file)
                         self.file_manager.remove_file(FileDestinations.LOCAL, data["path"])
                     else:
-                        self._logger.debug(f"not purging {file}")
+                        self._logger.debug("not purging %s", file)
 
         elif demand == "start_print":
             def _on_start_finished(fut: asyncio.Future):
@@ -752,10 +753,10 @@ class SimplyPrintWebsocket:
             if "token" in args:
                 self._loop.run_in_executor(None, self._send_requested_logs, args.get("token"), args.get("logs", []), args.get("max_body"))
         else:
-            self._logger.debug(f"Unknown demand: {demand}")
+            self._logger.debug("Unknown demand: %s", demand)
 
     def _switch_ws_connection(self, endpoint: str) -> None:
-        self._logger.debug(f"Switching to {endpoint} endpoint.")
+        self._logger.debug("Switching to %s endpoint.", endpoint)
         self.test = (endpoint == "test")
         self._set_ws_url()
         self._save_item("endpoint", endpoint)
@@ -779,7 +780,7 @@ class SimplyPrintWebsocket:
                 if r.status_code == 200 and r.json()["status"]:
                     self.send_sp("logs_sent", r.json())
                 else:
-                    self._logger.debug(f"Error uploading logs, server response: {r.text}")
+                    self._logger.debug("Error uploading logs, server response: %s", r.text)
             else:
                 self._logger.debug("Total log post size is too large.")
         except Exception as e:
@@ -787,7 +788,7 @@ class SimplyPrintWebsocket:
 
 
     def _sync_settings_from_simplyprint(
-        self, sp_settings: Dict[str, Any]
+        self, sp_settings: dict[str, Any]
     ) -> None:
         self._logger.info(
             "Syncing Settings at request from SimplyPrint"
@@ -825,7 +826,7 @@ class SimplyPrintWebsocket:
         # )
         self.settings.save(trigger_event=True)
 
-    def _sync_webcam_settings(self, cam_settings: Dict[str, Any]) -> None:
+    def _sync_webcam_settings(self, cam_settings: dict[str, Any]) -> None:
         self._logger.info(
             "Syncing Webcam Settings at request from SimplyPrint"
         )
@@ -839,7 +840,7 @@ class SimplyPrintWebsocket:
         self.settings.set(["webcam"], data)
         self.settings.save()
 
-    def _save_printer_profile(self, sp_profile: Dict[str, Any]) -> None:
+    def _save_printer_profile(self, sp_profile: dict[str, Any]) -> None:
         profile_mgr = octoprint.server.printerProfileManager
         current_prof = profile_mgr.get("sp_printer")
         if current_prof is None:
@@ -867,7 +868,7 @@ class SimplyPrintWebsocket:
         backed_up = self.settings.get_boolean(
             ["info", "gcode_scripts_backed_up"]
         )
-        data: Optional[Dict[str, str]] = None
+        data: dict[str, str] | None = None
         if not backed_up or force:
             default_cancel_gc = (
                 ";disablemotorsM84;disableallheaters"
@@ -904,7 +905,7 @@ class SimplyPrintWebsocket:
                     not cur_pause_gc.startswith("; synced from SimplyPrint GCODE Macros"):
                 self.send_sp("gcode_scripts", {"scripts": data})
 
-    def _save_gcode_scripts(self, scripts: Dict[str, list]) -> None:
+    def _save_gcode_scripts(self, scripts: dict[str, list]) -> None:
         def fix_script(data: list) -> str:
             data = "\n".join(data)
             return octoprint.util.to_unicode(data)
@@ -990,7 +991,7 @@ class SimplyPrintWebsocket:
         self.send_sp("printer_error", {"error": msg})
 
     def _on_print_start(
-        self, print_data: Dict[str, Any], need_start_event: bool = True
+        self, print_data: dict[str, Any], need_start_event: bool = True
     ) -> None:
         # inlcludes started and resumed events
         if self.file_handler.start_pending():
@@ -1000,11 +1001,10 @@ class SimplyPrintWebsocket:
         filename = print_data["name"]
         dest = print_data["origin"]
         path = print_data["path"]
-        metadata: Dict[str, Any] = {}
-        if dest != FileDestinations.SDCARD:
-            if self.file_manager.has_analysis(dest, path):
-                metadata = self.file_manager.get_metadata(dest, path)["analysis"]
-        job_info: Dict[str, Any] = {"filename": filename}
+        metadata: dict[str, Any] = {}
+        if dest != FileDestinations.SDCARD and self.file_manager.has_analysis(dest, path):
+            metadata = self.file_manager.get_metadata(dest, path)["analysis"]
+        job_info: dict[str, Any] = {"filename": filename}
         filament: float = 0.
         for tool, data in metadata.get("filament", {}).items():
             if tool.startswith("tool") and "length" in data:
@@ -1020,7 +1020,9 @@ class SimplyPrintWebsocket:
         self.job_info_timer.start()
         self._send_job_event(job_info)
         self.set_display_message("Printing...", True)
-        self.ai_timer_not_before = datetime.datetime.now() + datetime.timedelta(seconds=120)
+        self.ai_timer_not_before = (
+            datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(seconds=120)
+        )
         self.ai_timer.start(delay=120.)
         self.scores = []
         # self.reset_printer_display_timer.stop()
@@ -1040,12 +1042,12 @@ class SimplyPrintWebsocket:
         self.scores = []
 
     def _on_print_done(
-        self, job_state: str, payload: Optional[Dict[str, Any]] = None
+        self, job_state: str, payload: dict[str, Any] | None = None
     ) -> None:
         self.job_info_timer.stop()
         self.ai_timer.stop()
         # self.reset_printer_display_timer.start()
-        event_payload: Dict[str, Any] = {job_state: True}
+        event_payload: dict[str, Any] = {job_state: True}
         if payload is not None:
             event_payload.update(payload)
         self._send_job_event(event_payload)
@@ -1053,7 +1055,7 @@ class SimplyPrintWebsocket:
         self.current_layer = -1
         self.set_display_message("Print complete", True)
 
-    def _on_metadata_update(self, payload: Dict[str, Any]) -> None:
+    def _on_metadata_update(self, payload: dict[str, Any]) -> None:
         if (
             "result" not in payload or
             payload["result"].get("analysisPending", False)
@@ -1067,8 +1069,8 @@ class SimplyPrintWebsocket:
             self.printer.is_current_file(fpath, False) and
             fname == self.cache.job_info.get("filename", "")
         ):
-            metadata: Dict[str, Any] = payload["result"]
-            job_info: Dict[str, Any] = {}
+            metadata: dict[str, Any] = payload["result"]
+            job_info: dict[str, Any] = {}
             filament: float = 0.
             for tool, data in metadata.get("filament", {}).items():
                 if tool.startswith("tool") and "length" in data:
@@ -1088,12 +1090,12 @@ class SimplyPrintWebsocket:
         self._update_state("cancelling")
 
     async def _handle_cpu_update(self, eventtime: float) -> float:
-        sys_stats: Dict[str, Any] = await self._loop.run_in_executor(
+        sys_stats: dict[str, Any] = await self._loop.run_in_executor(
             None, self.monitor.get_all_resources
         )
         cpu: float = sys_stats["cpu"]["average"]
         mem_pct: float = sys_stats["memory"].get("percent", 0)
-        temp_data: Optional[Dict[str, Any]] = sys_stats["temp"]
+        temp_data: dict[str, Any] | None = sys_stats["temp"]
         temp: float = 0.
         if isinstance(temp_data, dict):
             temp = temp_data.get("current", 0)
@@ -1109,7 +1111,7 @@ class SimplyPrintWebsocket:
             self.send_sp("cpu", diff)
         return eventtime + self.intervals["cpu"]
 
-    def _on_cpu_throttled(self, payload: Dict[str, Any]):
+    def _on_cpu_throttled(self, payload: dict[str, Any]):
         self.cache.throttled_state = payload
 
     def _on_ambient_changed(self, new_ambient: int) -> None:
@@ -1119,11 +1121,11 @@ class SimplyPrintWebsocket:
     async def _handle_job_info_update(self, eventtime: float) -> float:
         if self.cache.state != "printing":
             return eventtime + self.intervals["job"]
-        job_info: Dict[str, Any] = {}
+        job_info: dict[str, Any] = {}
         cur_data = await self._loop.run_in_executor(None, self.printer.get_current_data)
-        progress: Dict[str, Any] = cur_data["progress"]
-        time_left: Optional[float] = progress.get("printTimeLeft")
-        pct_done: Optional[int] = None
+        progress: dict[str, Any] = cur_data["progress"]
+        time_left: float | None = progress.get("printTimeLeft")
+        pct_done: int | None = None
         if time_left is not None:
             last_time_left = self.cache.job_info.get("time", time_left + 60.)
             time_diff = last_time_left - time_left
@@ -1139,9 +1141,11 @@ class SimplyPrintWebsocket:
                 ptime = progress.get("printTime", 0)
                 total = ptime + time_left
                 pct_done = int(ptime / total * 100 + .5)
-        if pct_done is None and "completion" in progress:
-            if progress["completion"] is not None:
-                pct_done = int(progress["completion"] + .5)
+        if (
+            pct_done is None and
+            progress.get("completion") is not None
+        ):
+            pct_done = int(progress["completion"] + .5)
         if (
             pct_done is not None and
             pct_done != self.cache.job_info.get("progress", 0)
@@ -1160,9 +1164,9 @@ class SimplyPrintWebsocket:
     def _handle_temperature_update(self, eventtime: float) -> float:
         if not self.printer.is_operational():
             return eventtime + self.intervals["temps"]
-        current_temps: Dict[str, Any] = self.printer.get_current_temperatures()
+        current_temps: dict[str, Any] = self.printer.get_current_temperatures()
         need_rapid_update: bool = False
-        temp_data: Dict[str, List[int]] = {}
+        temp_data: dict[str, list[int]] = {}
         for heater, temps in current_temps.items():
             if heater == "chamber":
                 continue
@@ -1235,7 +1239,7 @@ class SimplyPrintWebsocket:
             )
         )
 
-    async def _post_snapshot(self, id: str = None, timer: float = None,
+    async def _post_snapshot(self, id: str | None = None, timer: float | None = None,
                              endpoint: str = "https://api.simplyprint.io/jobs/ReceiveSnapshot") -> None:
         if id is not None:
             img_data = await self._loop.run_in_executor(None, self.webcam_stream.extract_image)
@@ -1314,11 +1318,11 @@ class SimplyPrintWebsocket:
     def _send_connection_state(self, conn_state: str) -> None:
         self.send_sp("connection", {"new": conn_state})
 
-    def _send_mesh_data(self, mesh: Dict[str, Any]) -> None:
+    def _send_mesh_data(self, mesh: dict[str, Any]) -> None:
         self.cache.mesh = mesh
         self.send_sp("mesh_data", mesh)
 
-    def _send_job_event(self, job_info: Dict[str, Any]) -> None:
+    def _send_job_event(self, job_info: dict[str, Any]) -> None:
         if self.connected:
             self.send_sp("job_info", job_info)
         else:
@@ -1328,14 +1332,14 @@ class SimplyPrintWebsocket:
             if len(self.missed_job_events) > 10:
                 self.missed_job_events.pop(0)
 
-    def _on_firmware_warning(self, payload: Dict[str, Any]) -> None:
+    def _on_firmware_warning(self, payload: dict[str, Any]) -> None:
         self.cache.firmware_warning = payload
         # fw_info = self.cache.firmware_info
         # fw_info["unsafe"] = True
         # self.send_sp("firmware", fw_info)
         self.send_sp("firmware_warning", payload)
 
-    def _send_firmware_data(self, payload: Dict[str, Any]) -> None:
+    def _send_firmware_data(self, payload: dict[str, Any]) -> None:
         fw_info = {"fw": payload, "raw": True, "unsafe": False}
         self.cache.firmware_info = fw_info
         self.send_sp("firmware", fw_info)
@@ -1367,8 +1371,8 @@ class SimplyPrintWebsocket:
         if not isinstance(sp_plugins, list):
             sp_plugins = []
         pm = self.plugin._plugin_manager
-        installed_plugins: List[Dict[str, Any]] = []
-        plugins: Dict[str, Any] = pm.plugins  # type: ignore
+        installed_plugins: list[dict[str, Any]] = []
+        plugins: dict[str, Any] = pm.plugins  # type: ignore
         for plugin in plugins.values():
             if not plugin.bundled and plugin.enabled:
                 is_sp = plugin.key.lower() == "simplyprint"
@@ -1438,7 +1442,7 @@ class SimplyPrintWebsocket:
 
     def send_sp(
         self, evt_name: str, data: Any
-    ) -> Union[asyncio.Future, asyncio.Task]:
+    ) -> asyncio.Future | asyncio.Task:
         if (
             not self.connected or
             self.ws is None or
@@ -1455,7 +1459,7 @@ class SimplyPrintWebsocket:
 
         packet = {"type": evt_name, "data": data}
         if evt_name != "stream":
-            self._sock_logger.info(f"sent: {packet}")
+            self._sock_logger.info("sent: %s", packet)
         else:
             self._sock_logger.info("sent: webcam stream")
         try:
@@ -1485,7 +1489,7 @@ class SimplyPrintWebsocket:
             except Exception:
                 return
         if message == self.cache.message:
-            self._logger.debug(f"not setting printer display, cached message: {message}")
+            self._logger.debug("not setting printer display, cached message: %s", message)
             return
         self.cache.message = message
         if self.settings.get_boolean(["display_branding"]) or not self.is_set_up:
@@ -1494,11 +1498,11 @@ class SimplyPrintWebsocket:
             else:
                 prefix = "[SimplyPrint] "
             message = prefix + message
-        self._logger.debug(f"setting printer display: {message}")
+        self._logger.debug("setting printer display: %s", message)
         self._loop.run_in_executor(None, self.printer.commands, f"M117 {message}")
 
     async def _reset_printer_display(self, eventtime: float) -> float:
-        self._logger.debug(f"resetting display at {eventtime}")
+        self._logger.debug("resetting display at %s", eventtime)
         if self.settings.get_boolean(["display_show_status"]) is False:
             self.reset_printer_display_timer.stop()
         self.is_online = await self._loop.run_in_executor(
@@ -1507,9 +1511,9 @@ class SimplyPrintWebsocket:
                 server_reachable, "www.google.com", 80
             ))
         if not self.is_online:
-            self.set_display_message(f"No Internet", True)
+            self.set_display_message("No Internet", True)
         elif self.is_connected and not self.printer.is_printing():
-            self.set_display_message(f"Ready")
+            self.set_display_message("Ready")
         return eventtime + self.intervals["ready_message"]
 
     def _setup_simplyprint_logging(self):
@@ -1531,11 +1535,11 @@ class SimplyPrintWebsocket:
         self.qlistner.start()
 
     def _get_object_diff(
-        self, new_obj: Dict[str, Any], cached_obj: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, new_obj: dict[str, Any], cached_obj: dict[str, Any]
+    ) -> dict[str, Any]:
         if not cached_obj:
             return new_obj
-        diff: Dict[str, Any] = {}
+        diff: dict[str, Any] = {}
         for key, val in new_obj.items():
             if key in cached_obj and val == cached_obj[key]:
                 continue
@@ -1582,19 +1586,19 @@ class SimplyPrintWebsocket:
 class ReportCache:
     def __init__(self) -> None:
         self.state = "offline"
-        self.temps: Dict[str, Any] = {}
-        self.mesh: Dict[str, Any] = {}
-        self.job_info: Dict[str, Any] = {}
+        self.temps: dict[str, Any] = {}
+        self.mesh: dict[str, Any] = {}
+        self.job_info: dict[str, Any] = {}
         self.active_extruder: str = ""
         # Persistent state across connections
-        self.firmware_info: Dict[str, Any] = {}
-        self.firmware_warning: Dict[str, Any] ={}
-        self.machine_data: Dict[str, Any] = {}
-        self.cpu_info: Dict[str, Any] = {}
-        self.throttled_state: Dict[str, Any] = {}
+        self.firmware_info: dict[str, Any] = {}
+        self.firmware_warning: dict[str, Any] ={}
+        self.machine_data: dict[str, Any] = {}
+        self.cpu_info: dict[str, Any] = {}
+        self.throttled_state: dict[str, Any] = {}
         self.download_progress: int = -1
         self.message: str = ""
-        self.updates: List[Dict[str, Any]] = []
+        self.updates: list[dict[str, Any]] = []
         self.firmware_error: str = ""
 
     def reset_print_state(self) -> None:
@@ -1652,7 +1656,7 @@ class AmbientDetect:
                 self._last_sample_time = eventtime
                 self._update_interval = AMBIENT_CHECK_TIME
                 if last_ambient != self._ambient:
-                    self._logger.debug(f"SimplyPrint: New Ambient: {self._ambient}")
+                    self._logger.debug("SimplyPrint: New Ambient: %s", self._ambient)
                     self._on_ambient_changed(self._ambient)
             else:
                 self._initial_sample = temp
@@ -1675,7 +1679,7 @@ class AmbientDetect:
 class FlexTimer:
     def __init__(self, callback: TimerCallback) -> None:
         self.callback = callback
-        self.timer_handle: Optional[asyncio.Handle] = None
+        self.timer_handle: asyncio.Handle | None = None
         self.running: bool = False
 
     def start(self, delay: float = 0.):

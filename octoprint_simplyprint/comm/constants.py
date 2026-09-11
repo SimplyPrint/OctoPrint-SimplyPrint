@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, unicode_literals
-#
 # SimplyPrint
 # Copyright (C) 2020-2021  SimplyPrint ApS
 #
@@ -23,5 +20,5 @@ UPDATE_URL = "https://request.simplyprint.io"
 API_VERSION = "0.0.3"
 WEBCAM_SNAPSHOT_URL = "https://livestream.simplyprint.io/"
 SIMPLYPRINT_PLUGIN_INSTALL_URL = "https://github.com/SimplyPrint/OctoPrint-SimplyPrint/archive/master.zip"
-WS_CHECK_ENDPOINT = f"https://api.simplyprint.io/ws_check.php"
-TEST_WS_CHECK_ENDPOINT = f"https://testapi.simplyprint.io/ws_check.php"
+WS_CHECK_ENDPOINT = "https://api.simplyprint.io/ws_check.php"
+TEST_WS_CHECK_ENDPOINT = "https://testapi.simplyprint.io/ws_check.php"

@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, unicode_literals
-#
 # SimplyPrint
 # Copyright (C) 2020-2021  SimplyPrint ApS
 #
@@ -17,6 +14,3 @@ from __future__ import absolute_import, division, unicode_literals
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
-
-
