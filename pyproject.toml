@@ -1,0 +1,45 @@
+[build-system]
+requires = [
+    "setuptools>=68",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "SimplyPrint"
+version = "4.2.3"
+description = "3D print online anywhere from (probably) the most user friendly all-in-one platform there is, from your computer or phone."
+authors = [
+    { name = "SimplyPrint", email = "contact@simplyprint.io" },
+]
+requires-python = ">=3.7,<4"
+dependencies = [
+    "requests",
+    "sentry-sdk",
+]
+dynamic = [
+    "license",
+]
+
+[project.entry-points."octoprint.plugin"]
+SimplyPrint = "octoprint_simplyprint"
+
+[project.urls]
+Homepage = "https://simplyprint.io/"
+
+[project.optional-dependencies]
+develop = [
+    "go-task-bin",
+]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = [
+    "octoprint_simplyprint",
+    "octoprint_simplyprint.*",
+]

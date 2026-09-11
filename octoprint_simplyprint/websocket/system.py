@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # SimplyPrint
 # Copyright (C) 2020-2022  SimplyPrint ApS
 #
@@ -17,28 +15,28 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import annotations
-import os
-import logging
-import socket
-import sys
-import io
-import re
+
 import ipaddress
 import json
+import logging
+import os
+import platform
+import re
+import socket
+import sys
 import uuid
+from typing import TYPE_CHECKING, Any, Callable
 
 import psutil
 import requests
 import sarge
-import platform
-from typing import TYPE_CHECKING, Callable, List, Dict, Any, Optional, Tuple
-
+from octoprint.events import Events
+from octoprint.plugin import PluginSettings
 from octoprint.util.commandline import CommandlineCaller
 from octoprint.util.pip import LocalPipCaller
-from octoprint.plugin import PluginSettings
 from octoprint.util.platform import CLOSE_FDS
-from octoprint.events import Events, EventManager
-from .constants import *
+
+from .constants import PLUGIN_INSTALL_URL, TEST_PLUGIN_INSTALL_URL
 
 if TYPE_CHECKING:
     from .simplyprint import SimplyPrintWebsocket
@@ -49,7 +47,7 @@ class SystemQuery:
         self._logger = logging.getLogger("octoprint.plugins.simplyprint")
         self.command_line = CommandlineCaller()
 
-    def get_system_info(self) -> Dict[str, Any]:
+    def get_system_info(self) -> dict[str, Any]:
         info = {}
         ver, api_ver = self._get_octoprint_version()
         info["ui_version"] = ver
@@ -74,35 +72,35 @@ class SystemQuery:
 
     def get_mac_address(self):
         mac_int = uuid.getnode()
-        mac_hex = "{:012x}".format(mac_int)
+        mac_hex = f"{mac_int:012x}"
         mac_address = ":".join(mac_hex[i:i + 2] for i in range(0, 12, 2)).upper()
         return mac_address
 
-    def _get_routed_ip(self) -> Optional[str]:
+    def _get_routed_ip(self) -> str | None:
         try:
             # Connect to an external host (Google DNS server) to determine the local IP
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 s.connect(("8.8.8.8", 80))
                 local_ip = s.getsockname()[0]
         except Exception as e:
-            print(f"Error: {e}")
+            self._logger.warning("Failed to determine the routed IP", exc_info=e)
             local_ip = None
 
         return local_ip
 
-    def _get_wifi_interface(self) -> Tuple[Optional[str], Optional[str]]:
+    def _get_wifi_interface(self) -> tuple[str | None, str | None]:
         os_name = platform.system()
         try:
             if os_name == "Linux":
                 cmd = "iwgetid"
-                ret, stdout, stderr = self.command_line.checked_call(cmd)
+                _ret, stdout, _stderr = self.command_line.checked_call(cmd)
                 if stdout:
                     parts = stdout[0].strip().split(maxsplit=1)
                     ssid = parts[1].split(":")[-1].strip('"')
                     return parts[0], ssid
             elif os_name == "Windows":
                 cmd = ["netsh", "wlan", "show", "interfaces"]
-                ret, stdout, stderr = self.command_line.checked_call(cmd)
+                _ret, stdout, _stderr = self.command_line.checked_call(cmd)
                 if stdout:
                     for line in stdout:
                         if " SSID" in line:
@@ -112,7 +110,7 @@ class SystemQuery:
             self._logger.exception("Failed to retrieve wifi interfaces")
         return None, None
 
-    def get_network_info(self) -> Dict[str, Any]:
+    def get_network_info(self) -> dict[str, Any]:
         src_ip = self._get_routed_ip()
         netinfo = {
             "hostname": socket.gethostname(),
@@ -125,7 +123,7 @@ class SystemQuery:
         if os_name == "Linux":
             cmd = "ip -json address"
             try:
-                ret, stdout, stderr = self.command_line.checked_call(cmd)
+                _ret, stdout, _stderr = self.command_line.checked_call(cmd)
                 decoded = json.loads("\n".join(stdout))
                 for interface in decoded:
                     if (
@@ -161,7 +159,7 @@ class SystemQuery:
         if os_name == "Linux":
             info_path = "/proc/cpuinfo"
             try:
-                with io.open(info_path, "rt", encoding="utf-8") as file:
+                with open(info_path, encoding="utf-8") as file:
                     data = file.read()
                 cpu_items = [
                     item.strip() for item in data.split("\n\n") if item.strip()
@@ -180,14 +178,18 @@ class SystemQuery:
                 pass
         return "unknown"
 
-    def _get_octoprint_version(self) -> Tuple[str, str]:
+    def _get_octoprint_version(self) -> tuple[str, str]:
         """
         Get OctoPrint version and API version
         :return: (tuple) OctoPrint version, API version
         """
-        from octoprint.server.api import VERSION
-        from octoprint import __version__
-        return __version__, VERSION
+        from octoprint.util.version import get_octoprint_version_string
+        try:
+            from octoprint.server.api import VERSION
+        except ImportError:
+            # OctoPrint 2.0.0+ removed it
+            from octoprint.server.api import API_VERSION_PRE_2_0_0 as VERSION
+        return get_octoprint_version_string(), VERSION
 
     def _get_public_port(self) -> str:
         # noinspection PyProtectedMember
@@ -199,7 +201,7 @@ class SystemManager:
         self.simplyprint = simplyprint
         self.logger = self.simplyprint._logger
         self.settings = self.simplyprint.settings
-        self.installed_plugins: List[str] = self.settings.get(["sp_installed_plugins"])
+        self.installed_plugins: list[str] = self.settings.get(["sp_installed_plugins"])
         if not isinstance(self.installed_plugins, list):
             self.installed_plugins = []
             self.settings.set(["sp_installed_plugins"], [])
@@ -223,41 +225,42 @@ class SystemManager:
         if self.install_plugin(data):
             self.restart_octoprint()
 
-    def install_plugin(self, plugins: List[Dict[str, str]]) -> bool:
+    def install_plugin(self, plugins: list[dict[str, str]]) -> bool:
         install_error = False
         for plugin_data in plugins:
             name = plugin_data['name']
             url = plugin_data["install_url"]
             self.logger.info(
-                f"Installing OctoPrint Plugin '{name}' at "
-                f"request from SimplyPrint from {url}"
+                "Installing OctoPrint Plugin '%s' at "
+                "request from SimplyPrint from %s",
+                name, url
             )
             key = plugin_data.get("key")
             if key is not None and key not in self.installed_plugins:
                 self.installed_plugins.append(key)
                 self.settings.set(["sp_installed_plugins"], self.installed_plugins)
                 self.settings.save()
-            args: List[str] = ["install", url, "--no-cache-dir"]
+            args: list[str] = ["install", url, "--no-cache-dir"]
             try:
                 code, stdout, stderr = self._call_pip(*args)
             except Exception:
-                self.logger.exception(f"Failed to install plugin: {name}")
+                self.logger.exception("Failed to install plugin: %s", name)
                 install_error = True
             if code != 0:
                 self.logger.error(
-                    f"Failed to install plugin {name}, returned with {code}\n"
-                    f"{stdout}\n{stderr}"
+                    "Failed to install plugin %s, returned with %s\n"
+                    "%s\n%s",
+                    name, code, stdout, stderr
                 )
                 install_error = True
-        if install_error:
-            return False
-        return True
+        return not install_error
 
-    def uninstall_plugin(self, plugin_data: Dict[str, str]) -> bool:
+    def uninstall_plugin(self, plugin_data: dict[str, str]) -> bool:
         name = plugin_data['name']
         self.logger.info(
-            f"Uninstalling OctoPrint Plugin '{name}' at "
-            "request from SimplyPrint"
+            "Uninstalling OctoPrint Plugin '%s' at "
+            "request from SimplyPrint",
+            name
         )
         key = plugin_data.get("key")
         if key is not None and key in self.installed_plugins:
@@ -265,16 +268,17 @@ class SystemManager:
             self.settings.set(["sp_installed_plugins"], self.installed_plugins)
             self.settings.save()
         pip_name = plugin_data["pip_name"].replace(" ", "-")
-        args: List[str] = ["uninstall", "--yes", pip_name]
+        args: list[str] = ["uninstall", "--yes", pip_name]
         try:
             code, stdout, stderr = self._call_pip(*args)
         except Exception:
-            self.logger.exception(f"Failed to uninstall plugin {name}")
+            self.logger.exception("Failed to uninstall plugin %s", name)
             return False
         if code != 0:
             self.logger.error(
-                f"Failed to uninstall plugin {name}, returned with {code}\n"
-                f"{stdout}\n{stderr}"
+                "Failed to uninstall plugin %s, returned with %s\n"
+                "%s\n%s",
+                name, code, stdout, stderr
             )
             return False
         return True
@@ -340,7 +344,7 @@ class SystemManager:
     def power_off_printer(self) -> None:
         self._do_power_action("off")
 
-    def get_power_state(self) -> Optional[bool]:
+    def get_power_state(self) -> bool | None:
         if not self.settings.get_boolean(["has_power_controller"]):
             return None
         helpers = self.simplyprint.get_helpers("psucontrol")
@@ -356,7 +360,7 @@ class SystemManager:
 
     def _do_power_action(self, action: str) -> None:
         helpers = self.simplyprint.get_helpers("psucontrol")
-        func: Optional[Callable] = None
+        func: Callable | None = None
         if helpers is None:
             helpers = self.simplyprint.get_helpers("simplypowercontroller")
             if helpers is not None:
@@ -367,7 +371,7 @@ class SystemManager:
         if func is not None:
             func()
 
-    def get_filament_sensor_state(self) -> Optional[str]:
+    def get_filament_sensor_state(self) -> str | None:
         if not self.settings.get_boolean(["has_filament_sensor"]):
             return None
         helpers = self.simplyprint.get_helpers("simplyfilamentsensor")
@@ -385,19 +389,23 @@ class SystemManager:
                 stderr=sarge.Capture(), async_=do_async
             )
         except Exception:
-            self.logger.exception(f"Error running command: {command}")
+            self.logger.exception("Error running command: %s", command)
             return
         if not do_async and ret.returncode != 0:
             stdout = ret.stdout.text  # type: ignore
             stderr = ret.stderr.text  # type: ignore
             self.logger.error(
-                f"Failed to run command '{command}', returned with "
-                f"{ret.returncode}\n{stdout}\n{stderr}"
+                "Failed to run command '%s', returned with "
+                "%s\n%s\n%s",
+                command, ret.returncode, stdout, stderr
             )
 
-    def check_software_update(self) -> List[Dict[str, Any]]:
+    def check_software_update(self) -> list[dict[str, Any]]:
         port = self.simplyprint.plugin.port
-        api_key = self.settings.global_get(["api", "key"])
+        api_key = getattr(self.simplyprint.plugin, "plugin_apikey", None)
+        if api_key is None:
+            # Fallback for OctoPrint versions < 2.0.0
+            api_key = self.settings.global_get(["api", "key"])
         url = f"http://127.0.0.1:{port}/plugin/softwareupdate/check"
         try:
             resp = requests.get(
@@ -407,12 +415,12 @@ class SystemManager:
                 # Response code no good
                 self.logger.warning("Couldn't check for an OctoPrint update, API returned invalid response")
                 return []
-            ret: Dict[str, Any] = resp.json()
+            ret: dict[str, Any] = resp.json()
         except Exception:
-            self.logger.warning("Error fetching OctoPrint Updates")
+            self.logger.warning("Error fetching OctoPrint Updates", exc_info=True)
             return []
-        updates: List[Dict[str, Any]] = []
-        uinfo: Dict[str, Any]
+        updates: list[dict[str, Any]] = []
+        uinfo: dict[str, Any]
         for name, uinfo in ret.get("information", {}).items():
             if uinfo.get("updateAvailable", False):
                 local_ver = uinfo["information"]["local"]["value"]

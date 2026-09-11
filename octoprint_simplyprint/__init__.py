@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, unicode_literals
-#
 # SimplyPrint
 # Copyright (C) 2020-2021  SimplyPrint ApS
 #
@@ -19,17 +16,17 @@ from __future__ import absolute_import, division, unicode_literals
 #
 import errno
 import json
-import requests
-import sentry_sdk
+from typing import ClassVar
 
 # noinspection PyPackageRequirements
 import flask
-import serial
-import tornado
-
-from octoprint.events import Events
 import octoprint.plugin
 import octoprint.settings
+import requests
+import sentry_sdk
+import serial
+import tornado
+from octoprint.events import Events
 from octoprint.util.commandline import CommandlineError
 
 from octoprint_simplyprint.websocket import SimplyPrintWebsocket
@@ -100,7 +97,7 @@ IGNORED_EXCEPTIONS = [
     # IOErrors of any kind due to a full file system
     (
         IOError,
-        lambda exc, logger, plugin, cb: exc.errorgetattr(exc, "errno")  # noqa: B009
+        lambda exc, logger, plugin, cb: exc.errorgetattr(exc, "errno")
         and exc.errno in (getattr(errno, "ENOSPC"),),  # noqa: B009
     ),
     # RequestExceptions of any kind
@@ -123,7 +120,7 @@ class SimplyPrint(
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.BlueprintPlugin,
 ):
-    _files_analyzed = []
+    _files_analyzed: ClassVar[list] = []
 
     simply_print = None
     port = "5000"
@@ -160,7 +157,6 @@ class SimplyPrint(
                 # we only want exceptions
                 return None
 
-            handled = True
             logger = event.get("logger", "")
             plugin = event.get("extra", {}).get("plugin", None)
             callback = event.get("extra", {}).get("callback", None)
@@ -179,11 +175,11 @@ class SimplyPrint(
                     # exception ignored for logger, plugin and/or callback
                     return None
 
-                elif isinstance(ignore, type):
-                    if isinstance(hint["exc_info"][1], ignore):
-                        # exception ignored
-                        return None
+                elif isinstance(ignore, type) and isinstance(hint["exc_info"][1], ignore):
+                    # exception ignored
+                    return None
 
+            # handled = True
             # if event.get("exception") and event["exception"].get("values"):
             #     handled = not any(
             #         map(
@@ -201,7 +197,7 @@ class SimplyPrint(
             #         # we only want errors logged by our plugin's loggers
             #         return None
 
-            if logger.startswith("octoprint.plugins.SimplyPrint") or logger.startswith("octoprint.plugins.simplyprint"):
+            if logger.startswith(("octoprint.plugins.SimplyPrint", "octoprint.plugins.simplyprint")):
                 return event
             else:
                 return None
@@ -211,7 +207,7 @@ class SimplyPrint(
                 dsn="https://c35fae8df2d74707bec50279a0bcd7ae@o1102514.ingest.sentry.io/6611344",
                 traces_sample_rate=0.01,
                 before_send=_before_send,
-                release="SimplyPrint@{}".format(self._plugin_version)
+                release=f"SimplyPrint@{self._plugin_version}"
             )
             if self._settings.get(["printer_id"]) != "":
                 sentry_sdk.set_user({"id": self._settings.get(["printer_id"])})
@@ -270,16 +266,19 @@ class SimplyPrint(
             "version": self._plugin_version
         }
 
+    def is_template_autoescaped(self):
+        return True
+
     @staticmethod
     def get_assets():
-        return dict(
-            js=["js/SimplyPrint.js"],
-            css=["css/SimplyPrint.css"],
-            font=["font/lcd.ttf"],
-            logo=["img/sp_logo.png"],
-            logo_lg=["img/sp_logo_large.png"],
-            logo_white_sm=["img/sp_white_sm.png"]
-        )
+        return {
+            "js": ["js/SimplyPrint.js"],
+            "css": ["css/SimplyPrint.css"],
+            "font": ["font/lcd.ttf"],
+            "logo": ["img/sp_logo.png"],
+            "logo_lg": ["img/sp_logo_large.png"],
+            "logo_white_sm": ["img/sp_white_sm.png"]
+        }
 
     def get_api_commands(self):
         return {
@@ -294,7 +293,6 @@ class SimplyPrint(
             # Generally we do NOT want to access methods marked
             # as private, however this is for testing only
             self.simply_print._process_message(msg)
-        return
 
     # Send public port to outside system
     def send_port_ip(self, port=None):
@@ -317,7 +315,6 @@ class SimplyPrint(
                 # Execute GCODE
                 gcode_todo = str(request.args.get("do_gcode", default=None, type=None))
                 self._printer.commands(gcode_todo.split(","))
-                pass
             if request.args.get("power_controller", default=None, type=None) is not None:
                 # Power Controller
                 new_state = str(request.args.get("power_controller", default=None, type=None))
@@ -339,18 +336,18 @@ class SimplyPrint(
 
                     # Parse
                     try:
-                        the_json = json.loads(r.content)
-                    except:
-                        self._logger.error("Failed to format request response to JSON; " + str(r.content))
+                        json.loads(r.content)
+                    except json.JSONDecodeError:
+                        self._logger.error("Failed to format request response to JSON; %s", r.content)
                         return False
-                except:
+                except Exception:
                     pass
 
     # Blueprint mixin
     @octoprint.plugin.BlueprintPlugin.route("/can_reboot", methods=["GET"])
     def can_reboot_route(self):
         can_reboot = self._printer.get_state_id() not in ["PRINTING", "PAUSED", "PAUSING"]
-        self._logger.debug("Is it ok to reboot? {}".format(can_reboot))
+        self._logger.debug("Is it ok to reboot? %s", can_reboot)
         return flask.jsonify({"can_reboot": can_reboot})
 
     def is_blueprint_protected(self):
@@ -407,33 +404,33 @@ class SimplyPrint(
         return
 
     def get_update_information(self):
-        return dict(
-            SimplyPrint=dict(
-                displayName="SimplyPrint",
-                displayVersion=self._plugin_version,
+        return {
+            "SimplyPrint": {
+                "displayName": "SimplyPrint",
+                "displayVersion": self._plugin_version,
 
                 # version check: github repository
-                type="github_release",
-                user="SimplyPrint",
-                repo="OctoPrint-SimplyPrint",
-                current=self._plugin_version,
-                stable_branch=dict(name="Stable", branch="master", comittish=["master"]),
-                prerelease_branches=[
-                    dict(
-                        name="Development",
-                        branch="devel",
-                        comittish=["develop", "rc", "master"],
-                    ),
-                    dict(
-                        name="Release Candidate",
-                        branch="rc",
-                        comittish=["rc", "master"],
-                    )
+                "type": "github_release",
+                "user": "SimplyPrint",
+                "repo": "OctoPrint-SimplyPrint",
+                "current": self._plugin_version,
+                "stable_branch": {"name": "Stable", "branch": "master", "comittish": ["master"]},
+                "prerelease_branches": [
+                    {
+                        "name": "Development",
+                        "branch": "devel",
+                        "comittish": ["develop", "rc", "master"],
+                    },
+                    {
+                        "name": "Release Candidate",
+                        "branch": "rc",
+                        "comittish": ["rc", "master"],
+                    }
                 ],
                 # update method: pip
-                pip="https://github.com/SimplyPrint/OctoPrint-SimplyPrint/archive/{target_version}.zip"
-            )
-        )
+                "pip": "https://github.com/SimplyPrint/OctoPrint-SimplyPrint/archive/{target_version}.zip"
+            }
+        }
 
 
 __plugin_name__ = "SimplyPrint Cloud"

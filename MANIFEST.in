@@ -1,1 +1,5 @@
 include octoprint_simplyprint/comm/get_ip.sh
+include README.md
+recursive-include octoprint_simplyprint/templates *
+recursive-include octoprint_simplyprint/translations *
+recursive-include octoprint_simplyprint/static *
