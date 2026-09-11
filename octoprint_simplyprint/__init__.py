@@ -266,6 +266,9 @@ class SimplyPrint(
             "version": self._plugin_version
         }
 
+    def is_template_autoescaped(self):
+        return True
+
     @staticmethod
     def get_assets():
         return {
