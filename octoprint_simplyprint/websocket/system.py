@@ -183,9 +183,13 @@ class SystemQuery:
         Get OctoPrint version and API version
         :return: (tuple) OctoPrint version, API version
         """
-        from octoprint import __version__
-        from octoprint.server.api import VERSION
-        return __version__, VERSION
+        from octoprint.util.version import get_octoprint_version_string
+        try:
+            from octoprint.server.api import VERSION
+        except ImportError:
+            # OctoPrint 2.0.0+ removed it
+            from octoprint.server.api import API_VERSION_PRE_2_0_0 as VERSION
+        return get_octoprint_version_string(), VERSION
 
     def _get_public_port(self) -> str:
         # noinspection PyProtectedMember
