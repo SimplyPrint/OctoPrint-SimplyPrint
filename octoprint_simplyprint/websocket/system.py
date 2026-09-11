@@ -402,7 +402,10 @@ class SystemManager:
 
     def check_software_update(self) -> list[dict[str, Any]]:
         port = self.simplyprint.plugin.port
-        api_key = self.settings.global_get(["api", "key"])
+        api_key = getattr(self.simplyprint.plugin, "plugin_apikey", None)
+        if api_key is None:
+            # Fallback for OctoPrint versions < 2.0.0
+            api_key = self.settings.global_get(["api", "key"])
         url = f"http://127.0.0.1:{port}/plugin/softwareupdate/check"
         try:
             resp = requests.get(
