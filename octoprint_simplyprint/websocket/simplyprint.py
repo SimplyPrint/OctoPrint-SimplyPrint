@@ -956,6 +956,8 @@ class SimplyPrintWebsocket:
     def _on_state_event(self, new_state: str) -> None:
         if not self.is_connected:
             return
+        if new_state == "printing":
+            self.job_info_timer.start()
         self._update_state(new_state)
 
     def _on_printer_connected(self):
@@ -1406,7 +1408,12 @@ class SimplyPrintWebsocket:
         # The firmware data and machine data is likely saved by
         # simplyprint.  It might be better for SP to request it
         # rather than for the client to send it on every connection.
+        if self.printer.is_printing():
+            self.job_info_timer.start()
+            self._update_state("printing")
         self.send_sp("state_change", {"new": self.cache.state})
+        if self.cache.job_info:
+            self.send_sp("job_info", self.cache.job_info.copy())
         if self.cache.temps:
             self.send_sp("temps", self.cache.temps)
         if self.cache.firmware_info:
