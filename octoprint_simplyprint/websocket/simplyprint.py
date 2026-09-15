@@ -956,6 +956,8 @@ class SimplyPrintWebsocket:
     def _on_state_event(self, new_state: str) -> None:
         if not self.is_connected:
             return
+        if new_state == "printing":
+            self.job_info_timer.start()
         self._update_state(new_state)
 
     def _on_printer_connected(self):
