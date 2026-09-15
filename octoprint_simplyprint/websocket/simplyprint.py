@@ -1406,6 +1406,9 @@ class SimplyPrintWebsocket:
         # The firmware data and machine data is likely saved by
         # simplyprint.  It might be better for SP to request it
         # rather than for the client to send it on every connection.
+        if self.printer.is_printing():
+            self.job_info_timer.start()
+            self._update_state("printing")
         self.send_sp("state_change", {"new": self.cache.state})
         if self.cache.job_info:
             self.send_sp("job_info", self.cache.job_info.copy())
