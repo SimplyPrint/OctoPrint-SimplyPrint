@@ -1407,6 +1407,8 @@ class SimplyPrintWebsocket:
         # simplyprint.  It might be better for SP to request it
         # rather than for the client to send it on every connection.
         self.send_sp("state_change", {"new": self.cache.state})
+        if self.cache.job_info:
+            self.send_sp("job_info", self.cache.job_info.copy())
         if self.cache.temps:
             self.send_sp("temps", self.cache.temps)
         if self.cache.firmware_info:
