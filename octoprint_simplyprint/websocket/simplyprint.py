@@ -1209,12 +1209,42 @@ class SimplyPrintWebsocket:
             return
         self.printer_reconnect_timer.start(delay=2.)
 
+    def _printer_port_available(self) -> bool:
+        """
+        Check that OctoPrint has a serial port to offer before we ask it to
+        connect.  A connect attempt with no port candidates always fails, and
+        each failed attempt leaks one of OctoPrint's sending threads
+        (OctoPrint/OctoPrint#5420, fixed on OctoPrint's dev branch on
+        2026-06-17 but not in any release yet).
+        This check is a workaround to avoid that leak.
+        """
+        try:
+            options = self.printer.get_connection_options()
+        except Exception:
+            self._logger.exception(
+                "Failed to read OctoPrint's connection options"
+            )
+            # Never block a connect attempt because our own check broke
+            return True
+        ports = options.get("ports") or []
+        port = options.get("portPreference")
+        if port and port != "AUTO":
+            return port in ports or os.path.exists(port)
+        return bool(ports)
+
     async def _handle_printer_reconnect(self, eventtime: float) -> float:
         rt = self.intervals.get("reconnect", 60.)
         if not rt or self.printer.is_operational():
             self.printer_reconnect_timer.stop()
         elif self.printer.get_state_id() != "CONNECTING":
-            await self._loop.run_in_executor(None, self.printer.connect)
+            if await self._loop.run_in_executor(
+                None, self._printer_port_available
+            ):
+                await self._loop.run_in_executor(None, self.printer.connect)
+            else:
+                self._logger.debug(
+                    "Skipping printer reconnect, no serial port available"
+                )
         return eventtime + rt
 
     async def _handle_update_check(self, eventtime: float) -> float:
